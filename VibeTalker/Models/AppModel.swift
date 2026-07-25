@@ -53,6 +53,7 @@ final class AppModel {
     private let runtimeInstallation: RuntimeInstallation
     private let piClient: PiRPCClient
     private let piJobs: PiJobController
+    private let requestPolicy: PiRequestPolicy
     private let referenceBridge: MoshiReferenceBridge
     private let referenceAdapter: MoshiChatCompletionsAdapter
     private let referenceServer: LoopbackReferenceServer
@@ -85,6 +86,9 @@ final class AppModel {
         self.processCoordinator = processCoordinator
         self.runtimeInstallation = resolvedInstallation
         self.piClient = PiRPCClient(processes: processCoordinator)
+        self.requestPolicy = PiRequestPolicy(
+            projectName: resolvedInstallation.sandboxWorkspaceURL.lastPathComponent
+        )
         self.piJobs = PiJobController(
             rpc: self.piClient,
             projectName: resolvedInstallation.sandboxWorkspaceURL.lastPathComponent
@@ -375,8 +379,11 @@ final class AppModel {
                 let coordinator = ConversationCoordinator(
                     interactor: interactor,
                     piDispatcher: piJobs,
-                    referenceDelivery: referenceBridge
-                )
+                    referenceDelivery: referenceBridge,
+                    policy: requestPolicy
+                ) { [weak self] kind, message in
+                    await self?.publish(kind, message)
+                }
                 let sessionID = UUID()
                 await coordinator.beginVoiceSession(sessionID)
                 await referenceBridge.beginSession(sessionID) { utterance in
@@ -535,19 +542,49 @@ final class AppModel {
                 await publish(.policy, "Request declined; pinned pi RPC session is not ready")
                 return
             }
-            do {
-                let receipt = try await piJobs.dispatch(PiRequest(
-                    operation: .start,
-                    instruction: value
-                ))
-                isJobRunning = (await piJobs.snapshot()).isRunning
-                pendingPiOutcome = nil
-                if case .started(let projectName) = receipt {
-                    await publish(.policy, "Work started in \(projectName)")
+
+            switch await requestPolicy.resolvePending(
+                with: value,
+                origin: .console
+            ) {
+            case .dispatch(let request, let message):
+                await publish(.policy, message)
+                await dispatchComposerRequest(request)
+                return
+            case .consumed(let message):
+                await publish(.policy, message)
+                return
+            case .none(let expiredMessage):
+                if let expiredMessage {
+                    await publish(.policy, expiredMessage)
                 }
-            } catch {
-                await publish(.error, "Pi request failed: \(error.localizedDescription)")
             }
+
+            let request = PiRequest(operation: .start, instruction: value)
+            switch await requestPolicy.evaluate(request, origin: .console) {
+            case .dispatch(let approved):
+                await dispatchComposerRequest(approved)
+            case .awaitConfirmation(let proposal):
+                await publish(
+                    .policy,
+                    "Proposal \(proposal.id.uuidString): \(proposal.confirmationQuestion)"
+                )
+            case .refuse(let reason):
+                await publish(.policy, reason)
+            }
+        }
+    }
+
+    private func dispatchComposerRequest(_ request: PiRequest) async {
+        do {
+            let receipt = try await piJobs.dispatch(request)
+            isJobRunning = (await piJobs.snapshot()).isRunning
+            pendingPiOutcome = nil
+            if case .started(let projectName) = receipt {
+                await publish(.policy, "Work started in \(projectName)")
+            }
+        } catch {
+            await publish(.error, "Pi request failed: \(error.localizedDescription)")
         }
     }
 

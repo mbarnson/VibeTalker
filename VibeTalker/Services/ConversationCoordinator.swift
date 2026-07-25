@@ -22,7 +22,7 @@ nonisolated enum PiDispatchReceipt: Equatable, Sendable {
 }
 
 nonisolated struct CoordinatedTurn: Equatable, Sendable {
-    let interaction: ValidatedInteraction
+    let interaction: ValidatedInteraction?
     let reference: ReferenceDelivery
     let piReceipt: PiDispatchReceipt?
 }
@@ -66,64 +66,140 @@ actor ConversationCoordinator {
     private let interactor: any InteractionServing
     private let piDispatcher: any PiRequestDispatching
     private let referenceDelivery: any ReferenceDelivering
+    private let policy: PiRequestPolicy
+    private let eventSink: @Sendable (LedgerEventKind, String) async -> Void
     private var activeVoiceSessionID: UUID?
     private var latestRevisionByUtterance: [UUID: UInt64] = [:]
 
     init(
         interactor: any InteractionServing,
         piDispatcher: any PiRequestDispatching,
-        referenceDelivery: any ReferenceDelivering
+        referenceDelivery: any ReferenceDelivering,
+        policy: PiRequestPolicy = PiRequestPolicy(projectName: "Workspace"),
+        eventSink: @escaping @Sendable (LedgerEventKind, String) async -> Void = { _, _ in }
     ) {
         self.interactor = interactor
         self.piDispatcher = piDispatcher
         self.referenceDelivery = referenceDelivery
+        self.policy = policy
+        self.eventSink = eventSink
     }
 
-    func beginVoiceSession(_ id: UUID) {
+    func beginVoiceSession(_ id: UUID) async {
+        if let expiry = await policy.reset(reason: "voice session changed") {
+            await eventSink(.policy, expiry)
+        }
         activeVoiceSessionID = id
         latestRevisionByUtterance.removeAll()
     }
 
-    func endVoiceSession(_ id: UUID) {
+    func endVoiceSession(_ id: UUID) async {
         guard activeVoiceSessionID == id else { return }
+        if let expiry = await policy.reset(reason: "voice session ended") {
+            await eventSink(.policy, expiry)
+        }
         activeVoiceSessionID = nil
         latestRevisionByUtterance.removeAll()
     }
 
     func commit(_ utterance: CommittedUtterance) async throws -> CoordinatedTurn {
         let admission = try admit(utterance)
+
+        switch await policy.resolvePending(
+            with: utterance.transcript,
+            origin: .voice
+        ) {
+        case .dispatch(let request, let message):
+            await eventSink(.policy, message)
+            let dispatched = try await piDispatcher.dispatch(request)
+            try requireCurrent(admission)
+            let reference = try await deliver(
+                try groundedReference(for: request, receipt: dispatched),
+                admission: admission,
+                requestID: UUID()
+            )
+            return CoordinatedTurn(
+                interaction: nil,
+                reference: reference,
+                piReceipt: dispatched
+            )
+        case .consumed(let message):
+            await eventSink(.policy, message)
+            let reference = try await deliver(
+                "The pending request was rejected; no work was started.",
+                admission: admission,
+                requestID: UUID()
+            )
+            return CoordinatedTurn(
+                interaction: nil,
+                reference: reference,
+                piReceipt: nil
+            )
+        case .none(let expiredMessage):
+            if let expiredMessage {
+                await eventSink(.policy, expiredMessage)
+            }
+        }
+
         let interaction = try await interactor.interact(with: utterance)
         try requireCurrent(admission)
 
         let receipt: PiDispatchReceipt?
         let referenceText: String
         if let request = interaction.piRequest {
-            let dispatched = try await piDispatcher.dispatch(request)
-            try requireCurrent(admission)
-            referenceText = try groundedReference(
-                for: request,
-                receipt: dispatched
-            )
-            receipt = dispatched
+            switch await policy.evaluate(request, origin: .voice) {
+            case .dispatch(let approved):
+                let dispatched = try await piDispatcher.dispatch(approved)
+                try requireCurrent(admission)
+                referenceText = try groundedReference(
+                    for: approved,
+                    receipt: dispatched
+                )
+                receipt = dispatched
+            case .awaitConfirmation(let proposal):
+                await eventSink(
+                    .policy,
+                    "Proposal \(proposal.id.uuidString) is waiting for confirmation"
+                )
+                referenceText = proposal.confirmationQuestion
+                receipt = nil
+            case .refuse(let reason):
+                await eventSink(.policy, reason)
+                referenceText = reason
+                receipt = nil
+            }
         } else {
             referenceText = interaction.referenceResponse
             receipt = nil
         }
 
-        let delivery = ReferenceDelivery(
-            voiceSessionID: utterance.voiceSessionID,
-            utteranceID: utterance.utteranceID,
-            interactionRequestID: interaction.requestID,
-            text: referenceText
+        let delivery = try await deliver(
+            referenceText,
+            admission: admission,
+            requestID: interaction.requestID
         )
-        try await referenceDelivery.deliver(delivery)
-        try requireCurrent(admission)
 
         return CoordinatedTurn(
             interaction: interaction,
             reference: delivery,
             piReceipt: receipt
         )
+    }
+
+    private func deliver(
+        _ text: String,
+        admission: Admission,
+        requestID: UUID
+    ) async throws -> ReferenceDelivery {
+        let delivery = ReferenceDelivery(
+            voiceSessionID: admission.voiceSessionID,
+            utteranceID: admission.utteranceID,
+            interactionRequestID: requestID,
+            text: text
+        )
+        try await referenceDelivery.deliver(delivery)
+        try requireCurrent(admission)
+        return delivery
     }
 
     private func admit(_ utterance: CommittedUtterance) throws -> Admission {

@@ -461,6 +461,102 @@ struct VibeTalkerTests {
         #expect(result.piRequest?.instruction == "Update README and verify the diff.")
     }
 
+    @Test func requestPolicySeparatesDirectConfirmableAndUnavailableWork() async {
+        let policy = PiRequestPolicy(projectName: "Workspace")
+        let direct = PiRequest(
+            operation: .start,
+            instruction: "Add a focused unit test for the parser."
+        )
+        #expect(
+            await policy.evaluate(direct, origin: .voice)
+                == .dispatch(direct)
+        )
+
+        let destructive = PiRequest(
+            operation: .start,
+            instruction: "Delete the obsolete fixture files."
+        )
+        guard case .awaitConfirmation(let proposal) = await policy.evaluate(
+            destructive,
+            origin: .voice
+        ) else {
+            Issue.record("Expected destructive work to require confirmation.")
+            return
+        }
+        #expect(proposal.projectName == "Workspace")
+        #expect(proposal.normalizedAction == "delete the obsolete fixture files")
+        #expect(proposal.expiresAt.timeIntervalSinceNow <= 30)
+        #expect(proposal.confirmationQuestion.contains("Say confirm"))
+
+        guard case .dispatch(let confirmed, _) = await policy.resolvePending(
+            with: "Yes, confirm.",
+            origin: .voice
+        ) else {
+            Issue.record("Expected the live proposal to be confirmed.")
+            return
+        }
+        #expect(confirmed == destructive)
+
+        let unavailable = PiRequest(
+            operation: .start,
+            instruction: "Switch project and edit another repository."
+        )
+        guard case .refuse(let reason) = await policy.evaluate(
+            unavailable,
+            origin: .console
+        ) else {
+            Issue.record("Expected project-changing work to be refused.")
+            return
+        }
+        #expect(reason.contains("unavailable"))
+        #expect(
+            await policy.resolvePending(with: "confirm", origin: .console)
+                == .none(expiredMessage: nil)
+        )
+    }
+
+    @Test func pendingProposalExpiresOnUnrelatedOrLateInput() async {
+        let policy = PiRequestPolicy(projectName: "Workspace")
+        let request = PiRequest(
+            operation: .start,
+            instruction: "Remove all generated snapshots."
+        )
+        let created = Date(timeIntervalSince1970: 1_000)
+        _ = await policy.evaluate(request, origin: .voice, now: created)
+
+        guard case .none(let unrelatedMessage) = await policy.resolvePending(
+            with: "What time is it?",
+            origin: .voice,
+            now: created.addingTimeInterval(1)
+        ) else {
+            Issue.record("Expected unrelated input to expire the proposal.")
+            return
+        }
+        #expect(unrelatedMessage?.contains("unrelated voice input") == true)
+
+        _ = await policy.evaluate(request, origin: .voice, now: created)
+        guard case .none(let timeoutMessage) = await policy.resolvePending(
+            with: "confirm",
+            origin: .voice,
+            now: created.addingTimeInterval(31)
+        ) else {
+            Issue.record("Expected a late confirmation to expire.")
+            return
+        }
+        #expect(timeoutMessage?.contains("30 seconds") == true)
+
+        _ = await policy.evaluate(request, origin: .console, now: created)
+        guard case .none(let channelMessage) = await policy.resolvePending(
+            with: "confirm",
+            origin: .voice,
+            now: created.addingTimeInterval(1)
+        ) else {
+            Issue.record("Expected cross-channel confirmation to be rejected.")
+            return
+        }
+        #expect(channelMessage?.contains("different control channel") == true)
+    }
+
     @Test func responsesSSEDecoderRequiresTypedCompletion() throws {
         var decoder = ResponsesSSEDecoder()
         #expect(try decoder.consume("event: response.output_text.delta") == nil)
@@ -523,6 +619,55 @@ struct VibeTalkerTests {
             instruction: "Update the README."
         )])
         #expect(await references.deliveries() == [turn.reference])
+    }
+
+    @Test func coordinatorConfirmsOnlyTheLiveDestructiveProposal() async throws {
+        let sessionID = UUID()
+        let interactor = StubInteractor(
+            reference: "This request needs confirmation.",
+            piRequest: PiRequest(
+                operation: .start,
+                instruction: "Delete the obsolete fixture files."
+            )
+        )
+        let dispatcher = StubPiDispatcher(
+            receipt: .started(projectName: "Workspace")
+        )
+        let references = ReferenceCollector()
+        let policy = PiRequestPolicy(projectName: "Workspace")
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: dispatcher,
+            referenceDelivery: references,
+            policy: policy
+        )
+        await coordinator.beginVoiceSession(sessionID)
+
+        let proposalTurn = try await coordinator.commit(CommittedUtterance(
+            voiceSessionID: sessionID,
+            utteranceID: UUID(),
+            revision: 1,
+            transcript: "Delete the obsolete fixture files."
+        ))
+        #expect(proposalTurn.piReceipt == nil)
+        #expect(proposalTurn.reference.text.contains("confirm"))
+        #expect(await dispatcher.requests().isEmpty)
+
+        let confirmedTurn = try await coordinator.commit(CommittedUtterance(
+            voiceSessionID: sessionID,
+            utteranceID: UUID(),
+            revision: 1,
+            transcript: "Confirm."
+        ))
+        #expect(confirmedTurn.interaction == nil)
+        #expect(confirmedTurn.reference.text == "Work started in Workspace.")
+        #expect(await dispatcher.requests() == [
+            PiRequest(
+                operation: .start,
+                instruction: "Delete the obsolete fixture files."
+            )
+        ])
+        #expect(await interactor.callCount() == 1)
     }
 
     @Test func coordinatorRejectsStaleTranscriptBeforeInteraction() async throws {
