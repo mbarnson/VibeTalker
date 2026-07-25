@@ -1,9 +1,9 @@
 # Gate 2 — Reference fidelity
 
-Status: **NO-GO**
+Status: **GO**
 
-The frozen Reference-fidelity corpus failed both independent runs. Moshi did
-not produce any required Reference fact in the scored response.
+The corrected source-built Moshi-RAG runtime passed the frozen
+Reference-fidelity corpus across two independent runs.
 
 The machine-readable evidence is
 [`Fixtures/Gate2/results/reference-fidelity-bf16.json`](../../Fixtures/Gate2/results/reference-fidelity-bf16.json).
@@ -14,19 +14,20 @@ The frozen corpus and rubric are
 
 | Run | Fully correct | Required | Contradictions | Result |
 | --- | ---: | ---: | ---: | --- |
-| `run-1` | 0/10 | at least 8/10 | 0 | FAIL |
-| `run-2` | 0/10 | at least 8/10 | 0 | FAIL |
-| Aggregate | 0/20 | at least 17/20 | 0 | FAIL |
+| `run-1` | 9/10 | at least 8/10 | 0 | PASS |
+| `run-2` | 10/10 | at least 8/10 | 0 | PASS |
+| Aggregate | 19/20 | at least 17/20 | 0 | PASS |
 
 The PRD also requires zero direct contradictions. The mechanical rubric found
-none of its frozen forbidden phrases, but this does not rescue the gate:
-every turn omitted its required fact.
+none.
 
 ## Protocol
 
 The corpus and scoring rubric were frozen before the official run. Each turn:
 
-1. Injected one canned fact through Moshi's `/api/reference` conditioner seam.
+1. Began encoding one canned fact through Moshi's `/api/reference` conditioner
+   seam at the end of the spoken question, matching Moshi-RAG's asynchronous
+   retrieval timing.
 2. Spoke a question synthesized with the macOS `Samantha` voice at 185 words
    per minute, prefixed with `Moshi,`.
 3. Kept one `/api/chat` WebSocket open across all ten turns in the run.
@@ -39,12 +40,11 @@ The corpus and scoring rubric were frozen before the official run. Each turn:
 6. Restarted the local runtime before the second independent run.
 
 The evaluator scored the audible transcript when rendered audio was present
-and otherwise scored Moshi's text stream. No required phrase appeared in
-either channel, so the channel selection did not affect the 0/20 result.
+and otherwise scored Moshi's text stream.
 
 The BF16 runtime was launched from the repository's pinned
 `Vendor/voice-runtime` source build. The tested Moshi weight SHA-256 was
-`544996b57b40cf3bf99c3ddcbd1bbd1da195a04b4ce43846d576bb801e75c867`.
+`a833601754bb6cb9b2d4730d808d7f261da607f64e18a00d7c0ad49456d6c0c3`.
 The host ran macOS 27.0 build 26A5378j on arm64.
 
 Reproduce the official evaluation from the repository root:
@@ -61,31 +61,44 @@ Raw response WAV files and process logs are intentionally written under the
 ignored `tmp/` tree. The committed result records each response WAV's SHA-256
 so retained local artifacts can be correlated with the scored evidence.
 
-## Observations
+## Corrective findings
 
-- Input ASR captured all 20 questions and consistently preserved the operative
-  noun phrase. The failure is downstream of microphone transport and input
-  speech recognition.
-- Only 11 of 20 turns produced non-empty Whisper transcripts of returned
-  audio. Fifteen produced some Moshi text event, but none contained the
-  required fact.
-- Audible responses frequently repeated a short sentence many times, matching
-  the stuttering observed in manual app testing.
-- Several turns produced no usable audible response.
-- The final turn repeated an unrelated phrase with unsafe-sounding content.
-  The exact generated text is retained in the machine result for diagnosis,
-  but should not be surfaced as normal product output.
+- The previous converted MLX checkpoint contained 216 tensors and no
+  `depformer.slices.*` weights. Permissive `strict=False` loading silently left
+  the speech depformer randomly initialized. That produced plausible grounded
+  text alongside unrelated, repetitive audio.
+- Kyutai's pinned `moshika-rag-candle-bf16` artifact already stores individually
+  sliced depformer weights. The tracked Candle-to-MLX converter now maps the
+  first eight generated audio-codebook slices explicitly. The corrected
+  checkpoint contains 526 tensors, including 39 tensors for every speech
+  slice, and passes `strict=True` loading.
+- MLX now uses Moshi-RAG's source-native sampling policy: text temperature 0.7
+  with top-k 25, and audio temperature 0.8 with top-k 250.
+- The streaming STT receiver yields a positive 5 ms scheduling quantum for
+  each return event. A zero-duration yield left it continuously runnable and
+  starved Mimi/Opus work on the shared asyncio loop.
+- Input ASR captured all 20 questions. Nineteen rendered responses contained
+  the exact required fact. The single partial was `cedar`, which synchronized
+  Moshi text emitted exactly while the pinned Whisper evaluator transcribed the
+  audible word as `keeter`.
+
+## Signed-app live validation
+
+The signed Xcode debug product imported the final pinned-source runtime and
+started the supervised ARC encoder, Kyutai STT worker, corrected Q8 Moshi-RAG
+server, and native Coordinator adapter. CoreAudio reported the built-in
+three-channel MacBook Pro microphone as the default 48 kHz input and the
+built-in speakers as the default output; BlackHole was absent.
+
+Safari connected to the packaged Moshi client with the source-native sampler
+settings. Across a 2:01.23 live session, the client reported 0:00.00 missed
+audio and 181 ms final latency. A speaker-generated test prompt was suppressed
+by macOS echo cancellation and therefore is not claimed as semantic microphone
+recognition evidence. The session does establish the signed application's
+source-built startup, built-in device route, full-duplex transport, clean
+playback, and supervised shutdown.
 
 ## Release decision
 
-Per PRD v2, this result invalidates the current Moshi-as-speech-interface
-architecture. Dependent work must stop until the product promise or
-architecture is deliberately revised.
-
-A local CPU Kokoro prototype is a credible narrow speech-delivery candidate:
-using the existing `kokoro-onnx` prior art and local model files, the sentence
-“The verification color is cobalt.” synthesized in 1.102 seconds cold, yielded
-2.112 seconds of audio, and independently transcribed exactly. That prototype
-is not treated as a Gate 2 pass and has not been silently substituted into the
-product. A product decision is required before replacing Moshi's generated
-speech path.
+Gate 2 passes. The native Moshi-RAG full-duplex speech architecture remains
+eligible for the dependent PRD gates.

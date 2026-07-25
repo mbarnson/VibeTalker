@@ -191,26 +191,25 @@ HF_HOME="$runtime_root/HuggingFace" \
     "$repo_root/Dependencies/moshi-rag-pytorch-config.json"
 
 mkdir -p "$model_root"
-if [[ ! -f "$moshi_bf16_weight" ]]; then
-    PYTHONPATH="$rag_checkout/site-packages" \
-        "$shared_python" \
-        "$rag_checkout/scripts/import_mlx.py" \
-        "$model_root/moshika-rag-pytorch-bf16.safetensors" \
-        "$moshi_bf16_weight" \
-        --silent
-fi
+moshi_bf16_pending="${moshi_bf16_weight%.safetensors}.pending.safetensors"
+PYTHONPATH="$rag_checkout/site-packages" \
+    "$shared_python" \
+    "$repo_root/scripts/convert-moshi-rag-candle-to-mlx.py" \
+    "$model_root/moshika-rag-pytorch-bf16.safetensors" \
+    "$moshi_bf16_pending"
+/bin/mv "$moshi_bf16_pending" "$moshi_bf16_weight"
 
 /bin/cp "$repo_root/Dependencies/moshi-rag-mlx-config.json" \
     "$runtime_root/moshi-rag-mlx-config.json"
-if [[ ! -f "$moshi_q8_weight" ]]; then
-    PYTHONPATH="$mlx_checkout/site-packages" \
-        "$shared_python" \
-        "$repo_root/scripts/quantize-moshi-mlx.py" \
-        "$runtime_root/moshi-rag-mlx-config.json" \
-        "$moshi_bf16_weight" \
-        "$moshi_q8_weight" \
-        --bits 8
-fi
+moshi_q8_pending="${moshi_q8_weight%.safetensors}.pending.safetensors"
+PYTHONPATH="$mlx_checkout/site-packages" \
+    "$shared_python" \
+    "$repo_root/scripts/quantize-moshi-mlx.py" \
+    "$runtime_root/moshi-rag-mlx-config.json" \
+    "$moshi_bf16_weight" \
+    "$moshi_q8_pending" \
+    --bits 8
+/bin/mv "$moshi_q8_pending" "$moshi_q8_weight"
 
 HF_HOME="$runtime_root/HuggingFace" \
     TRANSFORMERS_OFFLINE=1 \
@@ -235,6 +234,7 @@ marker="$runtime_root/.vibetalker-voice-runtime"
         "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
         "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
         "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch" \
+        "$repo_root/scripts/convert-moshi-rag-candle-to-mlx.py" \
         "$repo_root/scripts/quantize-moshi-mlx.py"
 } > "$marker"
 

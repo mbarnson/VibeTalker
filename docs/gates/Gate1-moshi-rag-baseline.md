@@ -181,9 +181,12 @@ CPU scheduling would not address the measured bottleneck.
 
 ## Moshi-RAG MLX conversion checkpoint
 
-The pinned Moshi-RAG BF16 checkpoint was converted with the fork's
-`scripts/import_mlx.py` and loaded by the pinned `moshi_mlx` source runtime.
-The matching MLX model configuration is tracked in
+The original checkpoint conversion used the fork's `scripts/import_mlx.py`.
+Gate 2 later proved that artifact omitted every speech depformer slice because
+the pinned model uses Kyutai's newer sliced Candle layout. The accepted source
+build now uses `scripts/convert-moshi-rag-candle-to-mlx.py`, validates all
+eight generated audio-codebook slices, and loads the result strictly. The
+matching MLX model configuration remains tracked in
 `Dependencies/moshi-rag-mlx-config.json`.
 
 The converted BF16 model remained coherent and real-time:

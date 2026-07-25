@@ -20,8 +20,10 @@ The builder:
    exact transitive versions in the tracked lock files;
 5. resolves every model and tokenizer at a pinned Hugging Face revision;
 6. reuses revision-addressed local cache files when present;
-7. converts the pinned Moshi-RAG BF16 checkpoint to MLX; and
-8. writes the runtime layout expected by `RuntimeInstallation`.
+7. maps the pinned sliced Candle Moshi-RAG checkpoint into MLX, including all
+   eight generated speech depformer slices;
+8. regenerates Q8 from that validated BF16 checkpoint; and
+9. writes the runtime layout expected by `RuntimeInstallation`.
 
 The default staging destination is `Vendor/voice-runtime`, which is excluded
 from Git. An absolute destination may be passed as the first argument.
@@ -34,16 +36,17 @@ directory.
 
 ## Reproducibility evidence
 
-On the Gate 1 acceptance Mac, a clean run produced an MLX BF16 checkpoint
-bit-for-bit identical to the checkpoint used by the successful live
-conditioning experiment:
+On the Gate 2 acceptance Mac, a clean pinned-source run produced:
 
 ```text
-SHA-256 544996b57b40cf3bf99c3ddcbd1bbd1da195a04b4ce43846d576bb801e75c867
+BF16 a833601754bb6cb9b2d4730d808d7f261da607f64e18a00d7c0ad49456d6c0c3
+Q8   e9005a1bab2d766a73a63dd33ef4a56a59bbae1d268c0d7eef971be607e5e501
 ```
 
-Both tracked patches pass `git apply --check` against pristine clones of their
-pinned revisions.
+The BF16 file contains 526 tensors. Each of
+`depformer.slices.0` through `depformer.slices.7` contains 39 tensors, and the
+runtime passes a strict checkpoint load. The source builder always regenerates
+BF16 and Q8 so a stale conversion cannot survive a rebuild.
 
 The source-built ARC service was launched offline on MPS and accepted:
 

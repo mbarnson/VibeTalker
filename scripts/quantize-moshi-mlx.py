@@ -25,7 +25,7 @@ def main() -> None:
 
     model = models.Lm(configuration)
     model.set_dtype(mx.bfloat16)
-    model.load_weights(str(args.source), strict=False)
+    model.load_weights(str(args.source), strict=True)
 
     group_size = 32 if args.bits == 4 else 64
     nn.quantize(

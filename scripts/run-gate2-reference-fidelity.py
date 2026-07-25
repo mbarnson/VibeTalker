@@ -65,6 +65,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speech-rate", type=int, default=185)
     parser.add_argument("--response-seconds", type=float, default=12.0)
     parser.add_argument("--precision", choices=("bf16", "q8"), default="bf16")
+    parser.add_argument(
+        "--first-speaker",
+        choices=("model", "user"),
+        default="model",
+        help="Moshi-RAG prepend condition; upstream defaults to model.",
+    )
     parser.add_argument("--skip-reference", action="store_true")
     parser.add_argument(
         "--whisper-model",
@@ -107,10 +113,17 @@ def runtime_environment(runtime_root: Path, package: str) -> dict[str, str]:
 
 
 class ManagedRuntime:
-    def __init__(self, runtime_root: Path, log_root: Path, precision: str):
+    def __init__(
+        self,
+        runtime_root: Path,
+        log_root: Path,
+        precision: str,
+        first_speaker: str,
+    ):
         self.root = runtime_root.resolve()
         self.log_root = log_root
         self.precision = precision
+        self.first_speaker = first_speaker
         self.processes: list[tuple[str, asyncio.subprocess.Process, Any]] = []
 
     async def start(self) -> None:
@@ -177,7 +190,7 @@ class ManagedRuntime:
                 "--lm-config",
                 str(self.root / "moshi-rag-mlx-config.json"),
                 "--first-speaker",
-                "user",
+                self.first_speaker,
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -311,8 +324,7 @@ async def run_turn(
     whisper_model: str | None,
 ) -> dict[str, Any]:
     started = time.monotonic()
-    reference_payload: dict[str, Any] = {}
-    if turn["reference"]:
+    async def inject_reference() -> dict[str, Any]:
         async with session.post(
             "http://127.0.0.1:8999/api/reference",
             json={"text": turn["reference"]},
@@ -320,6 +332,7 @@ async def run_turn(
         ) as response:
             reference_payload = await response.json()
             response.raise_for_status()
+            return reference_payload
 
     output_pcm: list[np.ndarray] = []
     model_text: list[str] = []
@@ -361,7 +374,14 @@ async def run_turn(
                 asr_text.append(body[1:].decode("utf-8", errors="replace"))
 
     receiver = asyncio.create_task(receive())
+    reference_task: asyncio.Task[dict[str, Any]] | None = None
     for offset in range(0, payload.shape[-1], FRAME_SIZE):
+        if (
+            reference_task is None
+            and turn["reference"]
+            and offset >= audio.shape[-1]
+        ):
+            reference_task = asyncio.create_task(inject_reference())
         frame = payload[offset : offset + FRAME_SIZE]
         if frame.shape[-1] < FRAME_SIZE:
             frame = np.pad(frame, (0, FRAME_SIZE - frame.shape[-1]))
@@ -370,6 +390,11 @@ async def run_turn(
             await websocket.send_bytes(b"\x01" + encoded)
         await asyncio.sleep(FRAME_SIZE / SAMPLE_RATE)
     await receiver
+    reference_payload = (
+        await reference_task
+        if reference_task is not None
+        else {}
+    )
 
     streaming_stt_transcript = ""
     audible_transcript = ""
@@ -493,8 +518,12 @@ async def main() -> int:
     output = {
         "schema_version": 1,
         "corpus": str(args.corpus),
-        "protocol": corpus.get("protocol", {}),
+        "protocol": {
+            **corpus.get("protocol", {}),
+            "reference_timing": "spoken-prompt-end",
+        },
         "precision": args.precision,
+        "first_speaker": args.first_speaker,
         "audible_output_evaluator": (
             None
             if args.skip_whisper
@@ -524,6 +553,7 @@ async def main() -> int:
                     args.runtime_root,
                     log_root,
                     args.precision,
+                    args.first_speaker,
                 )
                 await runtime.start()
                 run_result = {"id": run["id"], "turns": []}

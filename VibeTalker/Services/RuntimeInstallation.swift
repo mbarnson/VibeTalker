@@ -255,7 +255,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--tokenizer", tokenizerURL.path,
                     "--mimi-weight", mimiWeightURL.path,
                     "--lm-config", mlxConfigurationURL.path,
-                    "--first-speaker", "user",
+                    "--first-speaker", "model",
                     "--host", "127.0.0.1",
                     "--port", "8999",
                     "--static", moshiClientURL.path,
