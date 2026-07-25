@@ -14,5 +14,16 @@
       "stt-1b-en_fr-candle": "095e38f6242006a93c2541149b181988397f5c7c",
       "ARC4_Encoder_Llama": "f27d986b193bfdff742d54412d3057b498ec8cc9"
     }
+  },
+  "moshi-mlx-baseline": {
+    "repository": "https://github.com/kyutai-labs/moshi.git",
+    "revision": "e6a55d2722a65870ef52a6c9f6ecfc0e90f38362",
+    "package": "moshi_mlx",
+    "integration": "source-build-experiment",
+    "models": {
+      "q4": "kyutai/moshiko-mlx-q4",
+      "q8": "kyutai/moshiko-mlx-q8",
+      "bf16": "kyutai/moshiko-mlx-bf16"
+    }
   }
 }

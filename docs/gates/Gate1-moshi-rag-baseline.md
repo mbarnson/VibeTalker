@@ -1,6 +1,6 @@
 # Gate 1: Upstream Moshi-RAG Baseline
 
-Status: **runtime verification in progress**
+Status: **upstream baseline failed; optimized-path investigation in progress**
 
 Recorded 2026-07-24 on the acceptance Mac:
 
@@ -16,9 +16,11 @@ Recorded 2026-07-24 on the acceptance Mac:
 - Repository: `https://github.com/kyutai-labs/moshi-rag.git`
 - Revision: `8c6dfc101b7871baa428424bcdc583b74fb561d9`
 
-The checkout under `Vendor/moshi-rag` is ignored by the VibeTalker repository
-and remains unmodified. The official Rust backend and web client are built from
-that detached upstream revision.
+The initial checkout under `Vendor/moshi-rag` was built and run unmodified from
+that detached upstream revision. Controlled local patches were then used to
+isolate the runtime failures described below. Those ignored checkout edits are
+not accepted product source; any retained change must become a tracked,
+reproducible patch.
 
 ## Source build
 
@@ -74,7 +76,7 @@ The upstream backend requests Reference text from an OpenAI-compatible
 with the unique verification fact `cobalt`, allowing Reference conditioning to
 be checked without a hosted provider.
 
-## Runtime acceptance evidence
+## Unmodified runtime result
 
 The pinned release backend reached all of the following milestones on Metal:
 
@@ -91,17 +93,54 @@ the same metadata/handshake sequence. Backend logs recorded every accepted
 connection and clean decoder/socket closure, proving that reconnect does not
 require a backend restart.
 
-The following live-audio evidence is still required before this gate can pass:
+Live microphone input exposed two upstream runtime failures:
 
-- microphone input and local streaming ASR
-- full-duplex model speech
-- barge-in while the model is speaking
-- learned `<ret>` retrieval and spoken use of the `cobalt` Reference
+- The default batched path failed with a Candle concatenation dtype mismatch:
+  `lhs: F32, rhs: BF16`.
+- With `batch_size` reduced to 1, the separate Candle `MetalDevice` instances
+  failed a convolution with a device mismatch even though both represented the
+  same physical GPU.
 
-The runtime uses an ignored localhost-only configuration that changes
-`use_https` to `false` and binds to `127.0.0.1`. Model topology, weights, source,
-and executable remain the pinned upstream baseline.
+Therefore the unmodified Moshi-RAG Metal backend does not pass Gate 1 on the
+acceptance Mac.
 
-Safari is currently waiting for explicit approval to grant the localhost site
-microphone access. No microphone permission was granted or bypassed while
-collecting the non-audio evidence above.
+## Controlled diagnostic patch
+
+A local diagnostic patch reused one exact Candle `MetalDevice` instance for the
+main model, STT model, and STT Mimi when they target the same GPU. It also moved
+incoming PCM to the STT Mimi device. That eliminated the device mismatch and
+produced a functional live session:
+
+- microphone input reached local streaming ASR;
+- Moshi produced live speech and text;
+- the backend queried the deterministic Reference fixture;
+- Moshi spoke the unique fixture fact `cobalt`.
+
+This validates the Reference/ARC topology but does not pass the latency
+requirement. F32 accumulated roughly 44 seconds of latency after 44 seconds of
+playback. BF16 reduced the backlog substantially, but still accumulated roughly
+11 seconds of latency after 29 seconds and produced clearly audible stuttering.
+
+## Apple Silicon optimization investigation
+
+Kyutai's base Moshi repository explicitly provides MLX for on-device inference
+on Mac and iPhone. Its runner uses:
+
+- BF16 model compute;
+- native MLX 4-bit or 8-bit quantization;
+- a full codec/model warm-up;
+- separate client/audio and model processes;
+- an `mlx-trace.json` trace containing model, encode, decode, queue-depth, and
+  lag events.
+
+The reproducibility manifest pins this experiment to:
+
+- Repository: `https://github.com/kyutai-labs/moshi.git`
+- Revision: `e6a55d2722a65870ef52a6c9f6ecfc0e90f38362`
+- Package: `moshi_mlx`
+
+The MLX implementation is not assumed to be a drop-in replacement. The
+Moshi-RAG fork's ARC Reference conditioning and embedded streaming STT remain in
+its Rust/Candle topology. The next test is a q4 MLX base-Moshi latency baseline
+on the same acceptance Mac. If that is real-time, it establishes the optimized
+execution target and bounds the work needed to preserve Reference conditioning.
