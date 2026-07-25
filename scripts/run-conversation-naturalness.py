@@ -279,13 +279,16 @@ async def evaluate_audio(
     timeout: float,
     turn: dict[str, Any],
 ) -> dict[str, Any]:
-    audio = np.asarray(
-        sphn.read(
-            str(Path(turn["audio_output"])),
-            sample_rate=SAMPLE_RATE,
-        ),
-        dtype=np.float32,
-    ).reshape(-1)
+    decoded, decoded_sample_rate = sphn.read(
+        str(Path(turn["audio_output"])),
+        sample_rate=SAMPLE_RATE,
+    )
+    if decoded_sample_rate != SAMPLE_RATE:
+        raise ValueError(
+            f"audio evaluator expected {SAMPLE_RATE} Hz PCM, "
+            f"received {decoded_sample_rate} Hz"
+        )
+    audio = np.asarray(decoded, dtype=np.float32).reshape(-1)
     pcm16 = (
         np.clip(audio, -1.0, 1.0) * np.float32(32_767)
     ).astype("<i2").tobytes()
