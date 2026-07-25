@@ -557,6 +557,17 @@ struct VibeTalkerTests {
         #expect(channelMessage?.contains("different control channel") == true)
     }
 
+    @Test func interactionMissWordingOnlyAddsNonDispatchForLikelyActions() {
+        #expect(
+            InteractionMissPolicy.reference(for: "Could you fix the parser?")
+                == "I couldn't verify that request, so no work was started."
+        )
+        #expect(
+            InteractionMissPolicy.reference(for: "Why is the sky blue?")
+                == "I couldn't retrieve that context just now."
+        )
+    }
+
     @Test func responsesSSEDecoderRequiresTypedCompletion() throws {
         var decoder = ResponsesSSEDecoder()
         #expect(try decoder.consume("event: response.output_text.delta") == nil)
@@ -668,6 +679,39 @@ struct VibeTalkerTests {
             )
         ])
         #expect(await interactor.callCount() == 1)
+    }
+
+    @Test func coordinatorInteractionMissNeverDispatchesOrStallsReference() async throws {
+        let sessionID = UUID()
+        let dispatcher = StubPiDispatcher(
+            receipt: .started(projectName: "Workspace")
+        )
+        let references = ReferenceCollector()
+        let events = LedgerEventCollector()
+        let coordinator = ConversationCoordinator(
+            interactor: FailingInteractor(),
+            piDispatcher: dispatcher,
+            referenceDelivery: references
+        ) { kind, message in
+            await events.append(kind: kind, message: message)
+        }
+        await coordinator.beginVoiceSession(sessionID)
+
+        let turn = try await coordinator.commit(CommittedUtterance(
+            voiceSessionID: sessionID,
+            utteranceID: UUID(),
+            revision: 1,
+            transcript: "Please update the README."
+        ))
+
+        #expect(turn.interaction == nil)
+        #expect(turn.piReceipt == nil)
+        #expect(turn.reference.text.contains("no work was started"))
+        #expect(await dispatcher.requests().isEmpty)
+        #expect(await references.deliveries() == [turn.reference])
+        #expect(await events.messages().contains(where: {
+            $0.contains("Interaction miss")
+        }))
     }
 
     @Test func coordinatorRejectsStaleTranscriptBeforeInteraction() async throws {
@@ -1166,6 +1210,28 @@ private actor StubInteractor: InteractionServing {
 
     func callCount() -> Int {
         calls
+    }
+}
+
+private struct FailingInteractor: InteractionServing {
+    struct Failure: LocalizedError {
+        var errorDescription: String? { "fixture provider failure" }
+    }
+
+    func interact(with utterance: CommittedUtterance) async throws -> ValidatedInteraction {
+        throw Failure()
+    }
+}
+
+private actor LedgerEventCollector {
+    private var received: [(LedgerEventKind, String)] = []
+
+    func append(kind: LedgerEventKind, message: String) {
+        received.append((kind, message))
+    }
+
+    func messages() -> [String] {
+        received.map(\.1)
     }
 }
 

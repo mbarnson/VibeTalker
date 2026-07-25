@@ -1,7 +1,7 @@
 # Gate 4: fast Interactor baseline
 
-Status: **live Coordinator path and Moshi chat-completions boundary compiled;
-MLX invocation, injection, and latency corpus pending**
+Status: **live Responses-to-MLX Reference path and Coordinator policy verified;
+frozen fidelity and latency corpora pending**
 
 ## Current checkpoint
 
@@ -23,6 +23,21 @@ Interactor prose is never allowed to claim that work started. A mismatched Pi
 receipt, invalid project/status evidence, Interactor failure, dispatch failure,
 or Reference-delivery failure is explicit and cannot publish a false
 acknowledgement.
+
+Interactor timeout, provider failure, cancellation, and malformed output now
+produce a ledger-visible Interaction miss and a bounded fallback Reference
+without dispatching pi. The frozen policy uses neutral wording for ordinary
+conversation and adds `no work was started` only when a deterministic verb
+heuristic finds a likely action request. The heuristic changes wording only;
+it has no dispatch authority.
+
+Voice and Pi Console starts now pass through one shared Coordinator policy.
+Direct in-workspace requests may dispatch, destructive or ambiguous requests
+create a correlated 30-second proposal, and external or project-changing
+requests are refused. Proposals record identity, normalized action, origin,
+project, risk, and expiry. Confirmation must arrive through the proposal's
+original control channel; unrelated, late, cross-channel, and voice-session
+changes expire it visibly.
 
 Xcode `test-without-building -only-testing:VibeTalkerTests` executes focused
 fixtures proving:
@@ -59,17 +74,18 @@ The supervised Moshi environment receives only the loopback adapter URL, a
 fixed internal model name, and an internal loopback token; the configured oMLX
 credential is not copied into that child environment.
 
-The executed unit target now includes a real URLSession request across this
-loopback boundary in addition to direct adapter coverage. This proves the
-native HTTP and Coordinator seam, but it does not claim that the current MLX
-runner consumes or injects the returned ARC condition.
+The packaged, source-pinned MLX runner now connects committed streaming ASR to
+this loopback boundary, sends the returned text to the ARC Reference Encoder,
+and queues the resulting conditioning frames into the live Moshi model loop.
+A live signed-app run accepted and queued proactive and committed References;
+the pinned browser client remained connected to the supervised local service.
+The executed unit target also includes a real URLSession request across the
+loopback boundary and focused policy, expiry, confirmation, and failure
+fixtures.
 
 ## Remaining Gate 4 work
 
-- Connect committed local ASR text to this boundary in the packaged MLX
-  runtime.
-- Apply the adapter result through the ARC encoder and fuse its streaming-sum
-  condition into each MLX Moshi step.
 - Run the frozen fidelity and latency corpora and publish measured native
   overhead plus remaining model allowances.
-- Freeze the observed Interaction-miss wording policy.
+- Compare the frozen neutral and heuristic-gated Interaction-miss corpus and
+  record whether the current heuristic wording remains the release choice.

@@ -141,7 +141,25 @@ actor ConversationCoordinator {
             }
         }
 
-        let interaction = try await interactor.interact(with: utterance)
+        let interaction: ValidatedInteraction
+        do {
+            interaction = try await interactor.interact(with: utterance)
+        } catch {
+            await eventSink(
+                .error,
+                "Interaction miss: \(error.localizedDescription)"
+            )
+            let reference = try await deliver(
+                InteractionMissPolicy.reference(for: utterance.transcript),
+                admission: admission,
+                requestID: UUID()
+            )
+            return CoordinatedTurn(
+                interaction: nil,
+                reference: reference,
+                piReceipt: nil
+            )
+        }
         try requireCurrent(admission)
 
         let receipt: PiDispatchReceipt?

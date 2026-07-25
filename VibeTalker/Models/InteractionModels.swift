@@ -211,6 +211,26 @@ actor PiRequestPolicy {
     }
 }
 
+nonisolated enum InteractionMissPolicy {
+    static func reference(for transcript: String) -> String {
+        let words = Set(
+            transcript
+                .lowercased()
+                .split(whereSeparator: { !$0.isLetter })
+                .map(String.init)
+        )
+        let actionWords: Set<String> = [
+            "add", "build", "change", "create", "delete", "edit", "fix",
+            "implement", "refactor", "remove", "rename", "run", "test", "update",
+            "write"
+        ]
+        if !words.isDisjoint(with: actionWords) {
+            return "I couldn't verify that request, so no work was started."
+        }
+        return "I couldn't retrieve that context just now."
+    }
+}
+
 nonisolated struct InteractionOutput: Codable, Equatable, Sendable {
     let utteranceID: UUID
     let referenceResponse: String
