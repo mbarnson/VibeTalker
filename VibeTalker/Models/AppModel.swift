@@ -33,17 +33,21 @@ final class AppModel {
     init(
         preflight: NativePreflight = NativePreflight(),
         processCoordinator: ProcessCoordinator = ProcessCoordinator(),
-        runtimeInstallation: RuntimeInstallation = RuntimeInstallation(),
+        runtimeInstallation: RuntimeInstallation? = nil,
         nodeHelperURL: URL? = nil
     ) {
+        let resolvedInstallation = runtimeInstallation ?? RuntimeInstallation(
+            bundledRuntimeRootURL: Bundle.main.resourceURL?
+                .appending(path: "Runtime", directoryHint: .isDirectory)
+        )
         self.preflight = preflight
         self.processCoordinator = processCoordinator
-        self.runtimeInstallation = runtimeInstallation
+        self.runtimeInstallation = resolvedInstallation
         self.piClient = PiRPCClient(processes: processCoordinator)
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
             .appending(path: "Contents/Helpers/vibetalker-node")
-        self.runtimeArtifacts = runtimeInstallation.diagnostics()
-        self.piArtifacts = runtimeInstallation.piDiagnostics(nodeURL: self.nodeHelperURL)
+        self.runtimeArtifacts = resolvedInstallation.diagnostics()
+        self.piArtifacts = resolvedInstallation.piDiagnostics(nodeURL: self.nodeHelperURL)
         Task {
             await publish(.system, "VibeTalker native host initialized")
         }
@@ -71,7 +75,14 @@ final class AppModel {
             return
         }
         let eventSink: PiRPCClient.EventSink = { [weak self] event in
-            await self?.publish(.helper, "pi event: \(event.type)")
+            if case .string(let record)? = event.raw["record"] {
+                await self?.publish(
+                    event.type == "process_stderr" ? .error : .helper,
+                    "pi \(event.type): \(record)"
+                )
+            } else {
+                await self?.publish(.helper, "pi event: \(event.type)")
+            }
         }
         Task { [weak self] in
             guard let self else { return }

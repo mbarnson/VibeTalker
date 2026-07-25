@@ -2,8 +2,9 @@ import Foundation
 
 nonisolated struct RuntimeInstallation: Sendable {
     let rootURL: URL
+    let bundledRuntimeRootURL: URL
 
-    init(rootURL: URL? = nil) {
+    init(rootURL: URL? = nil, bundledRuntimeRootURL: URL? = nil) {
         if let rootURL {
             self.rootURL = rootURL
         } else {
@@ -15,6 +16,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                 .appending(path: "VibeTalker", directoryHint: .isDirectory)
                 .appending(path: "Runtime", directoryHint: .isDirectory)
         }
+        self.bundledRuntimeRootURL = bundledRuntimeRootURL ?? self.rootURL
     }
 
     var mlxPythonURL: URL {
@@ -62,7 +64,7 @@ nonisolated struct RuntimeInstallation: Sendable {
     }
 
     var piWorkingDirectoryURL: URL {
-        rootURL.appending(path: "pi", directoryHint: .isDirectory)
+        bundledRuntimeRootURL.appending(path: "pi", directoryHint: .isDirectory)
     }
 
     var piRPCEntryURL: URL {
@@ -182,6 +184,7 @@ nonisolated struct RuntimeInstallation: Sendable {
             environment: [
                 "HOME": rootURL.path,
                 "NODE_NO_WARNINGS": "1",
+                "OPENSSL_CONF": "/dev/null",
                 "PATH": "/usr/bin:/bin",
                 "PI_CODING_AGENT_DIR": rootURL.appending(path: "PiConfig").path,
                 "TMPDIR": FileManager.default.temporaryDirectory.path

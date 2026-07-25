@@ -35,5 +35,6 @@ cp "$repo_root/PiExtension/vibetalker-tool-policy.ts" \
     "$checkout/vibetalker-tool-policy.ts"
 cp "$repo_root/PiExtension/tool-manifest.json" \
     "$checkout/vibetalker-tool-manifest.json"
+npm --prefix "$checkout" prune --omit=dev
 
 echo "Built pi coding agent from $repository at $revision"

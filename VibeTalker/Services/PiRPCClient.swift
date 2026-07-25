@@ -86,6 +86,14 @@ actor PiRPCClient {
             }
             return
         }
+        if processEvent.stream == .standardError {
+            let diagnostic = PiRPCEventFallback(
+                type: "process_stderr",
+                record: processEvent.message
+            )
+            await eventSink?(diagnostic.event)
+            return
+        }
         guard processEvent.stream == .standardOutput else { return }
 
         let data = Data(processEvent.message.utf8)

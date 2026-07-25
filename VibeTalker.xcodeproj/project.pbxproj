@@ -110,6 +110,7 @@
 				9DABCD9E30143DF0009842A1 /* Frameworks */,
 				9DABCD9F30143DF0009842A1 /* Resources */,
 				AA00000130143DF0009842A1 /* Embed Node Helper */,
+				AA00000230143DF0009842A1 /* Embed Pi Runtime */,
 			);
 			buildRules = (
 			);
@@ -239,6 +240,20 @@
 			);
 			shellPath = /bin/bash;
 			shellScript = "source \"$SRCROOT/scripts/embed-node-helper.sh\"\n";
+		};
+		AA00000230143DF0009842A1 /* Embed Pi Runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			inputPaths = (
+				"$(SRCROOT)/scripts/embed-pi-runtime.sh",
+				"$(SRCROOT)/Dependencies/upstreams.json",
+			);
+			name = "Embed Pi Runtime";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Runtime/pi/packages/coding-agent/dist/rpc-entry.js",
+			);
+			shellPath = /bin/bash;
+			shellScript = "source \"$SRCROOT/scripts/embed-pi-runtime.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
