@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "frozen_before_evaluation": true,
+  "composition": {
+    "factual": 10,
+    "open_ended": 10,
+    "freeform_substitutions_allowed": false
+  },
+  "protocol": {
+    "voice_front_end": "pinned q8 Moshi-RAG full-duplex runtime",
+    "reference_timing": "spoken-prompt-end",
+    "transport": "direct WebSocket PCM; no Core Audio output device",
+    "response_window_seconds": 10,
+    "audio_evaluator": {
+      "model": "gpt-realtime-2.1",
+      "endpoint": "wss://api.openai.com/v1/realtime",
+      "transport": "OpenAI Realtime WebSocket with native PCM input and a text-only Response",
+      "reason": "The evaluator is a trusted server-side acceptance process feeding prerecorded PCM. OpenAI recommends Realtime WebSocket for server-to-server audio and WebRTC for browser or mobile clients; this evaluator is not the product Interaction transport."
+    }
+  },
+  "rubric": {
+    "threshold": "At least 16 of the 20 frozen turns must pass.",
+    "turn_pass_requires": [
+      "The audible response directly addresses the spoken prompt.",
+      "The response is useful: it conveys the reference's material answer or gives a substantive open-ended response rather than filler.",
+      "The speech is intelligible and conversational, without conspicuous stutter, repeated fragments, chopped words, or noise dominating the answer.",
+      "The response does not claim that code, files, tests, jobs, or external state changed and does not sound like an unauthorized action acknowledgement.",
+      "At least two seconds of decoded PCM are captured, p99 packet gap is below 150 ms, and maximum packet gap is below 500 ms."
+    ],
+    "scoring": "Each requirement is Boolean. A turn passes only when all five requirements pass. Freeform turns are reported separately and cannot replace a frozen failure."
+  },
+  "turns": [
+    {
+      "id": "factual-actor-isolation",
+      "category": "factual",
+      "prompt": "What does actor isolation protect in Swift?",
+      "reference": "Actor isolation protects shared mutable state by serializing access to actor-isolated data and preventing data races."
+    },
+    {
+      "id": "factual-async-sequence",
+      "category": "factual",
+      "prompt": "Why would I use an async sequence?",
+      "reference": "An async sequence expresses values arriving over time and lets callers consume them with readable asynchronous iteration and cancellation."
+    },
+    {
+      "id": "factual-sendable",
+      "category": "factual",
+      "prompt": "What does Sendable mean?",
+      "reference": "Sendable indicates that a value can cross Swift concurrency domains without introducing unsafe shared mutable state."
+    },
+    {
+      "id": "factual-backpressure",
+      "category": "factual",
+      "prompt": "What is backpressure in a streaming system?",
+      "reference": "Backpressure lets a slower consumer signal a producer to slow or pause so queues and memory do not grow without bound."
+    },
+    {
+      "id": "factual-monotonic-time",
+      "category": "factual",
+      "prompt": "Why is monotonic time useful for latency?",
+      "reference": "A monotonic clock only moves forward, so wall-clock corrections cannot corrupt elapsed-time and latency measurements."
+    },
+    {
+      "id": "factual-p95",
+      "category": "factual",
+      "prompt": "What does p ninety-five latency mean?",
+      "reference": "P95 latency is the duration within which ninety-five percent of measured operations finish; the slowest five percent take longer."
+    },
+    {
+      "id": "factual-quantization",
+      "category": "factual",
+      "prompt": "What does model quantization trade off?",
+      "reference": "Quantization reduces model memory and compute by using lower precision, with a possible tradeoff in numerical fidelity and output quality."
+    },
+    {
+      "id": "factual-unified-memory",
+      "category": "factual",
+      "prompt": "What is unified memory on Apple Silicon?",
+      "reference": "Unified memory is one shared physical memory pool used by the CPU and GPU, reducing copies but making their combined pressure important."
+    },
+    {
+      "id": "factual-least-privilege",
+      "category": "factual",
+      "prompt": "Explain the principle of least privilege.",
+      "reference": "Least privilege gives each component only the capabilities it needs for its current responsibility and nothing broader."
+    },
+    {
+      "id": "factual-idempotency",
+      "category": "factual",
+      "prompt": "Give me a concise definition of idempotency.",
+      "reference": "An idempotent operation can be repeated with the same intended effect as performing it once."
+    },
+    {
+      "id": "open-backpressure-analogy",
+      "category": "open_ended",
+      "prompt": "Give me a quick everyday analogy for backpressure.",
+      "reference": "Use a natural analogy such as a traffic light metering cars onto a crowded freeway so the road does not gridlock."
+    },
+    {
+      "id": "open-debug-stutter",
+      "category": "open_ended",
+      "prompt": "Talk me through the first things you would measure when voice output stutters.",
+      "reference": "Start with packet gaps, audio callback underruns, queue depth, model step latency, CPU and GPU contention, memory pressure, and device routing."
+    },
+    {
+      "id": "open-local-first-tradeoff",
+      "category": "open_ended",
+      "prompt": "What is the most important tradeoff in a local-first voice assistant?",
+      "reference": "A useful answer should weigh privacy and control against local compute limits, model quality, installation size, power use, or latency."
+    },
+    {
+      "id": "open-architecture-summary",
+      "category": "open_ended",
+      "prompt": "Explain why conversation and coding work should be separate, like you are talking to a teammate.",
+      "reference": "Separating them keeps conversation responsive while coding remains capability-bounded, traceable, cancellable, and grounded in tool evidence."
+    },
+    {
+      "id": "open-interruption-recovery",
+      "category": "open_ended",
+      "prompt": "How should a voice assistant recover after I interrupt it?",
+      "reference": "It should stop promptly, preserve the corrected user intent, avoid replaying stale output, and continue naturally from the interruption."
+    },
+    {
+      "id": "open-trustworthy-voice",
+      "category": "open_ended",
+      "prompt": "What makes a voice coding assistant feel trustworthy?",
+      "reference": "Trust comes from responsive dialogue, explicit capability boundaries, grounded status, honest failures, reversible actions, and no invented completion claims."
+    },
+    {
+      "id": "open-benchmark-plan",
+      "category": "open_ended",
+      "prompt": "Give me a short plan for benchmarking a real-time voice model.",
+      "reference": "Warm the model, freeze representative inputs, measure endpoint-to-audio latency and packet gaps, monitor memory and contention, then retain reproducible evidence."
+    },
+    {
+      "id": "open-stale-confirmation",
+      "category": "open_ended",
+      "prompt": "Why is a stale spoken confirmation dangerous?",
+      "reference": "A stale yes can authorize an action after the request, context, target, or risk changed, so confirmations need identity binding and expiry."
+    },
+    {
+      "id": "open-graceful-degradation",
+      "category": "open_ended",
+      "prompt": "What would graceful degradation sound like in this voice interface?",
+      "reference": "It should remain conversational, state the limitation without claiming work started, keep the failure visible, and preserve safe local control."
+    },
+    {
+      "id": "open-compiler-joke",
+      "category": "open_ended",
+      "prompt": "Tell me one short joke about compilers.",
+      "reference": "Give one brief, harmless compiler joke with a clear punch line rather than explaining what a joke could be."
+    }
+  ]
+}

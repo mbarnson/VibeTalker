@@ -163,11 +163,25 @@ Vendor/voice-runtime/Python/bin/python3.12 \
 
 Vendor/voice-runtime/Python/bin/python3.12 \
   scripts/run-full-duplex-soak.py
+
+set -a
+source .env
+set +a
+Vendor/voice-runtime/Python/bin/python3.12 \
+  scripts/run-conversation-naturalness.py
 ```
 
 The full-duplex soak runs for ten minutes, retains component logs under
 `tmp/Acceptance-logs/`, and writes its frozen summary to
 `Fixtures/Acceptance/full-duplex-soak-q8.json`.
+
+The conversation-naturalness run captures the frozen 20-turn Moshi corpus
+without opening a Core Audio output device. It reloads `OPENAI_API_KEY` from
+the developer's untracked `.env` and sends only each captured response,
+its frozen spoken prompt, and its reference answer to `gpt-realtime-2.1`
+over OpenAI's server-to-server Realtime WebSocket for native audio evaluation.
+This hosted evaluator is acceptance instrumentation; the product Interactor
+continues to use the selected OpenAI or oMLX Responses WebSocket provider.
 
 Additional source-build detail is in
 [`docs/voice-runtime-build.md`](docs/voice-runtime-build.md). Gate evidence is
