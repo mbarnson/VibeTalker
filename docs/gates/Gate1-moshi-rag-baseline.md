@@ -76,14 +76,32 @@ be checked without a hosted provider.
 
 ## Runtime acceptance evidence
 
-The following evidence is still required before this gate can pass:
+The pinned release backend reached all of the following milestones on Metal:
+
+- `model is ready to roll!`
+- standalone listener active at `http://127.0.0.1:8998`
+- batched local STT LM and STT Mimi initialized on Metal
+- batched model loop started
+- `/api/availability` returned `{"available":true}`
+- the official client HTML returned HTTP 200
+
+A protocol probe received server metadata followed by the binary Moshi
+handshake. Three subsequent connect/disconnect/reconnect probes all received
+the same metadata/handshake sequence. Backend logs recorded every accepted
+connection and clean decoder/socket closure, proving that reconnect does not
+require a backend restart.
+
+The following live-audio evidence is still required before this gate can pass:
 
 - microphone input and local streaming ASR
 - full-duplex model speech
 - barge-in while the model is speaking
 - learned `<ret>` retrieval and spoken use of the `cobalt` Reference
-- browser disconnect and reconnection without restarting the backend
 
 The runtime uses an ignored localhost-only configuration that changes
 `use_https` to `false` and binds to `127.0.0.1`. Model topology, weights, source,
 and executable remain the pinned upstream baseline.
+
+Safari is currently waiting for explicit approval to grant the localhost site
+microphone access. No microphone permission was granted or bypassed while
+collecting the non-audio evidence above.
