@@ -60,6 +60,31 @@ struct ContentView: View {
 
             GroupBox("Managed local voice runtime") {
                 VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Picker(
+                            "Interaction provider",
+                            selection: Bindable(model).interactionProvider
+                        ) {
+                            ForEach(InteractionProvider.allCases) { provider in
+                                Text(provider.displayName).tag(provider)
+                            }
+                        }
+                        .labelsHidden()
+                        .onChange(of: model.interactionProvider) {
+                            model.interactionCredentialInput = ""
+                            model.refreshInteractionCredentialStatus()
+                        }
+                        Spacer()
+                        Label(
+                            model.interactionCredentialSource,
+                            systemImage: model.interactionCredentialConfigured
+                                ? "key.fill"
+                                : "key"
+                        )
+                        .foregroundStyle(
+                            model.interactionCredentialConfigured ? .green : .secondary
+                        )
+                    }
                     TextField(
                         "Responses endpoint",
                         text: Bindable(model).interactionEndpoint
@@ -72,6 +97,24 @@ struct ContentView: View {
                     )
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("interaction-model-id")
+                    HStack {
+                        SecureField(
+                            "\(model.interactionProvider.displayName) API key",
+                            text: Bindable(model).interactionCredentialInput
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("interaction-api-key")
+                        Button("Save") {
+                            model.saveInteractionCredential()
+                        }
+                        .disabled(model.interactionCredentialInput
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                            .isEmpty)
+                        Button("Remove") {
+                            model.deleteInteractionCredential()
+                        }
+                        .disabled(!model.interactionCredentialStoredInKeychain)
+                    }
                     Label(
                         model.referenceAdapterReady
                             ? "Coordinator adapter ready"

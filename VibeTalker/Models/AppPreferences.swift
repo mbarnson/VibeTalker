@@ -8,6 +8,7 @@ nonisolated struct AppPreferences {
         static let codingProvider = "codingProvider"
         static let codingBaseURL = "codingBaseURL"
         static let codingModelID = "codingModelID"
+        static let interactionProvider = "interactionProvider"
         static let interactionEndpoint = "interactionEndpoint"
         static let interactionModelID = "interactionModelID"
     }
@@ -55,6 +56,19 @@ nonisolated struct AppPreferences {
         }
         nonmutating set {
             defaults.set(newValue, forKey: Key.interactionEndpoint)
+        }
+    }
+
+    var interactionProvider: InteractionProvider {
+        get {
+            guard let rawValue = defaults.string(forKey: Key.interactionProvider),
+                  let provider = InteractionProvider(rawValue: rawValue) else {
+                return .responsesCompatible
+            }
+            return provider
+        }
+        nonmutating set {
+            defaults.set(newValue.rawValue, forKey: Key.interactionProvider)
         }
     }
 

@@ -227,6 +227,7 @@ def run_turn(
     category: str,
     transcript: str,
     previous_response_id: str | None,
+    reasoning_effort: str | None,
     timeout: float,
 ) -> dict:
     utterance_id = str(uuid.uuid4())
@@ -260,6 +261,8 @@ def run_turn(
     }
     if previous_response_id:
         body["previous_response_id"] = previous_response_id
+    if reasoning_effort:
+        body["reasoning"] = {"effort": reasoning_effort}
     request = urllib.request.Request(
         endpoint,
         data=json.dumps(body).encode("utf-8"),
@@ -337,6 +340,7 @@ def main() -> None:
     parser.add_argument("--sample-per-category", type=int)
     parser.add_argument("--timeout", type=float, default=5)
     parser.add_argument("--maximum-chained-turns", type=int, default=1)
+    parser.add_argument("--reasoning-effort")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -369,6 +373,7 @@ def main() -> None:
             "ordinary",
             "Briefly define deterministic behavior.",
             None,
+            args.reasoning_effort,
             args.timeout,
         )
 
@@ -388,6 +393,7 @@ def main() -> None:
                 category,
                 transcript,
                 previous_response_id,
+                args.reasoning_effort,
                 args.timeout,
             )
             previous_response_id = result["response_id"]
@@ -423,6 +429,7 @@ def main() -> None:
         "model": args.model,
         "endpoint": args.endpoint,
         "maximum_chained_turns": args.maximum_chained_turns,
+        "reasoning_effort": args.reasoning_effort,
         "turn_count": len(results),
         "valid_count": sum(result["valid"] for result in results),
         "median_seconds": round(statistics.median(latencies), 6),

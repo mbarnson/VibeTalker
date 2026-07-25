@@ -57,6 +57,34 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+nonisolated enum InteractionProvider: String, CaseIterable, Identifiable, Sendable {
+    case openAIResponses
+    case responsesCompatible
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .openAIResponses: "OpenAI Responses"
+        case .responsesCompatible: "Responses-compatible"
+        }
+    }
+
+    var credentialProvider: CodingProvider {
+        switch self {
+        case .openAIResponses: .openAI
+        case .responsesCompatible: .responsesCompatible
+        }
+    }
+
+    var reasoningEffort: String? {
+        switch self {
+        case .openAIResponses: "none"
+        case .responsesCompatible: nil
+        }
+    }
+}
+
 nonisolated struct CodingProviderCredential: Sendable {
     let provider: CodingProvider
     let value: String

@@ -18,11 +18,13 @@ struct VibeTalkerTests {
         let preferences = AppPreferences(defaults: defaults)
         #expect(preferences.codingProvider == .anthropic)
         #expect(preferences.codingBaseURL == AppPreferences.defaultCodingBaseURL)
+        #expect(preferences.interactionProvider == .responsesCompatible)
         #expect(preferences.interactionEndpoint == AppPreferences.defaultInteractionEndpoint)
 
         preferences.codingProvider = .responsesCompatible
         preferences.codingBaseURL = "http://127.0.0.1:8000/v1"
         preferences.codingModelID = "poolside--Laguna-S-2.1-NVFP4-mlx"
+        preferences.interactionProvider = .openAIResponses
         preferences.interactionEndpoint = "https://api.openai.com/v1/responses"
         preferences.interactionModelID = "gpt-5-mini"
 
@@ -30,8 +32,19 @@ struct VibeTalkerTests {
         #expect(restored.codingProvider == .responsesCompatible)
         #expect(restored.codingBaseURL == "http://127.0.0.1:8000/v1")
         #expect(restored.codingModelID == "poolside--Laguna-S-2.1-NVFP4-mlx")
+        #expect(restored.interactionProvider == .openAIResponses)
         #expect(restored.interactionEndpoint == "https://api.openai.com/v1/responses")
         #expect(restored.interactionModelID == "gpt-5-mini")
+    }
+
+    @Test func interactionProvidersKeepCredentialsAndLatencyPolicySeparate() {
+        #expect(InteractionProvider.openAIResponses.credentialProvider == .openAI)
+        #expect(InteractionProvider.openAIResponses.reasoningEffort == "none")
+        #expect(
+            InteractionProvider.responsesCompatible.credentialProvider
+                == .responsesCompatible
+        )
+        #expect(InteractionProvider.responsesCompatible.reasoningEffort == nil)
     }
 
     @Test func voiceReadinessRequiresSuccessfulMoshiClientPage() throws {

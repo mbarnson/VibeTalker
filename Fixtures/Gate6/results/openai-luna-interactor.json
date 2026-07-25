@@ -1,0 +1,1941 @@
+{
+  "summary": {
+    "schema_version": 1,
+    "model": "gpt-5.6-luna",
+    "endpoint": "https://api.openai.com/v1/responses",
+    "maximum_chained_turns": 1,
+    "reasoning_effort": "none",
+    "turn_count": 100,
+    "valid_count": 100,
+    "median_seconds": 1.04608,
+    "p95_seconds": 2.222713,
+    "over_three_seconds": 2,
+    "categories": {
+      "ordinary": {
+        "count": 60,
+        "valid": 60,
+        "median_seconds": 1.054292,
+        "p95_seconds": 1.749335
+      },
+      "dispatch": {
+        "count": 20,
+        "valid": 20,
+        "median_seconds": 1.040239,
+        "p95_seconds": 2.440035
+      },
+      "status": {
+        "count": 20,
+        "valid": 20,
+        "median_seconds": 0.980859,
+        "p95_seconds": 2.658959
+      }
+    }
+  },
+  "results": [
+    {
+      "utterance_id": "885c8932-0bbc-43c7-90dc-d9bc8b2d9013",
+      "category": "ordinary",
+      "transcript": "What does actor isolation protect in Swift?",
+      "latency_seconds": 1.05475,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0fab5134bbd836b7016a64780b6428819980695b0a3646c055",
+      "output": {
+        "utterance_id": "885c8932-0bbc-43c7-90dc-d9bc8b2d9013",
+        "reference_response": "Actor isolation protects shared mutable state by ensuring only one task accesses an actor\u2019s isolated data at a time, preventing data races.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "73a2bd5d-9016-4bdc-bc5b-47690f74dd48",
+      "category": "ordinary",
+      "transcript": "Explain the difference between a struct and a class.",
+      "latency_seconds": 1.02869,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0d48f46cfe7c38fc016a64780c6e2c819aa07106f0327c7c4f",
+      "output": {
+        "utterance_id": "73a2bd5d-9016-4bdc-bc5b-47690f74dd48",
+        "reference_response": "A struct is typically a value type, while a class is a reference type. Structs copy on assignment; classes share references and support inheritance.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "08d6422b-5a1a-4628-b786-2d3a93fd8b2e",
+      "category": "ordinary",
+      "transcript": "Why would I use an async sequence?",
+      "latency_seconds": 0.994131,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_058fb8d3fa73c904016a64780d73b0819bb485cec0ff44b47a",
+      "output": {
+        "utterance_id": "08d6422b-5a1a-4628-b786-2d3a93fd8b2e",
+        "reference_response": "Async sequences let you process values that arrive over time\u2014such as events or network data\u2014using readable asynchronous iteration.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "9325b20d-1b7d-4dfe-93b3-a76443244c9f",
+      "category": "ordinary",
+      "transcript": "What is a closure in Swift?",
+      "latency_seconds": 1.101056,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_071f3896fd1fd50a016a64780e758c8199a4e27aa84331b564",
+      "output": {
+        "utterance_id": "9325b20d-1b7d-4dfe-93b3-a76443244c9f",
+        "reference_response": "A Swift closure is a self-contained block of code you can pass around and call later, similar to a function but often written inline.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "9234dca0-467f-4464-a84c-c215086effaf",
+      "category": "ordinary",
+      "transcript": "How does reference counting work?",
+      "latency_seconds": 0.975182,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_05c9501a3a202013016a64780f9144819bb63900bf4fa0bcca",
+      "output": {
+        "utterance_id": "9234dca0-467f-4464-a84c-c215086effaf",
+        "reference_response": "Reference counting tracks how many owners point to an object; when the count reaches zero, the object is deallocated.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "3a777c87-5c58-42d3-9429-06815017f661",
+      "category": "ordinary",
+      "transcript": "What does Sendable mean?",
+      "latency_seconds": 1.018516,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0336f608a414bd04016a647810849c81998755b422bf89b5bc",
+      "output": {
+        "utterance_id": "3a777c87-5c58-42d3-9429-06815017f661",
+        "reference_response": "Sendable is a Swift concurrency protocol indicating a value can be safely transferred between concurrent tasks or actors.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "fea6d3ab-bc20-430e-8bac-85a8742a014d",
+      "category": "ordinary",
+      "transcript": "Explain value semantics in plain language.",
+      "latency_seconds": 1.026972,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0c7eca7345815442016a6478119364819aad57cf71110670b4",
+      "output": {
+        "utterance_id": "fea6d3ab-bc20-430e-8bac-85a8742a014d",
+        "reference_response": "Value semantics means each variable owns its own independent value, so changing one copy does not unexpectedly change another.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a7099fe0-f940-461e-969c-a227568bbdaf",
+      "category": "ordinary",
+      "transcript": "When is a protocol existential useful?",
+      "latency_seconds": 1.341938,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_00af842da8f07b82016a647812f2b08199b6709eada766e38a",
+      "output": {
+        "utterance_id": "a7099fe0-f940-461e-969c-a227568bbdaf",
+        "reference_response": "A protocol existential is useful when you need to store or pass values of different concrete types that share a protocol interface.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "07bd22b6-b1df-44b8-8c7c-3b308576c447",
+      "category": "ordinary",
+      "transcript": "What is the purpose of a result builder?",
+      "latency_seconds": 1.178302,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0a1584a4dfb6bed9016a64781403008199b61c50d2f02224fb",
+      "output": {
+        "utterance_id": "07bd22b6-b1df-44b8-8c7c-3b308576c447",
+        "reference_response": "A result builder lets Swift combine multiple statements into a single value, commonly for constructing declarative structures such as SwiftUI views.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a3a4bd80-a1ae-48e2-a97c-9f34145f50d6",
+      "category": "ordinary",
+      "transcript": "Why can UI work block audio?",
+      "latency_seconds": 1.062974,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0272a0c0e49d981c016a64781520d48198b72d97b3a5f08a9e",
+      "output": {
+        "utterance_id": "a3a4bd80-a1ae-48e2-a97c-9f34145f50d6",
+        "reference_response": "UI work can block audio when it runs synchronously on the main or real-time thread, delaying audio callbacks and causing glitches.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "f495bc15-a1bb-424a-844b-e76691d502ef",
+      "category": "ordinary",
+      "transcript": "What is backpressure in a streaming system?",
+      "latency_seconds": 1.054362,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0630b99c9026e58c016a6478162e98819aac4890ff3c4d14c9",
+      "output": {
+        "utterance_id": "f495bc15-a1bb-424a-844b-e76691d502ef",
+        "reference_response": "Backpressure is a flow-control mechanism where a slower consumer signals a producer to reduce or pause output, preventing overload and buffering problems.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "cb466193-a349-4c3b-a7e3-3623704e7ed8",
+      "category": "ordinary",
+      "transcript": "Explain optimistic concurrency.",
+      "latency_seconds": 1.027702,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0cef8ef670ca7276016a647817422c8199b81a23324efdb940",
+      "output": {
+        "utterance_id": "cb466193-a349-4c3b-a7e3-3623704e7ed8",
+        "reference_response": "Optimistic concurrency lets multiple operations proceed without locking; conflicts are detected at commit time and handled by retrying or rejecting changes.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "ffcd1dbd-2ae8-485f-89ce-09bdd097f4ad",
+      "category": "ordinary",
+      "transcript": "What makes a test deterministic?",
+      "latency_seconds": 1.089521,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0d7e41aee84a4157016a6478183e84819b8ee1486e9996325b",
+      "output": {
+        "utterance_id": "ffcd1dbd-2ae8-485f-89ce-09bdd097f4ad",
+        "reference_response": "A deterministic test produces the same result every time given the same inputs, without dependence on timing, randomness, external systems, or shared state.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "059a0bf0-e4f7-4d35-840b-cdbc3334d3f3",
+      "category": "ordinary",
+      "transcript": "Why is monotonic time useful for latency?",
+      "latency_seconds": 1.175678,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02a57f51262dcd3d016a647819560081999440b42df20a6532",
+      "output": {
+        "utterance_id": "059a0bf0-e4f7-4d35-840b-cdbc3334d3f3",
+        "reference_response": "Monotonic clocks only move forward, so clock adjustments don\u2019t distort elapsed-time or latency measurements.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "fc4beaaa-0f02-4191-bfb8-9f4896a750ca",
+      "category": "ordinary",
+      "transcript": "What is JSONL good for?",
+      "latency_seconds": 1.192932,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02226033b31559be016a64781a8378819aaa0f85911740ae9d",
+      "output": {
+        "utterance_id": "fc4beaaa-0f02-4191-bfb8-9f4896a750ca",
+        "reference_response": "JSONL stores one JSON object per line, making it useful for streaming, logs, data pipelines, and incremental processing.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "f395318a-85d8-437b-b001-6a3f813ddbe2",
+      "category": "ordinary",
+      "transcript": "How is SSE different from a WebSocket?",
+      "latency_seconds": 0.930782,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02f0b68e5694fd73016a64781baf80819a85e4a6e516344ea9",
+      "output": {
+        "utterance_id": "f395318a-85d8-437b-b001-6a3f813ddbe2",
+        "reference_response": "SSE is one-way server-to-client over HTTP; WebSockets provide bidirectional, low-latency communication over a persistent connection.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "48dd54da-451e-44a3-9c01-7a45073c682a",
+      "category": "ordinary",
+      "transcript": "What does p95 latency mean?",
+      "latency_seconds": 3.613385,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0d3573ccf160ba65016a64781ca698819aae586265f17fffdf",
+      "output": {
+        "utterance_id": "48dd54da-451e-44a3-9c01-7a45073c682a",
+        "reference_response": "p95 latency is the time within which 95% of requests complete; the slowest 5% take longer.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "fe66d011-61aa-403e-9e8f-77a6e8be8d95",
+      "category": "ordinary",
+      "transcript": "Why warm a model before benchmarking?",
+      "latency_seconds": 1.096502,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_043b41df1a6c29d8016a64782045bc819bb2ac297b049a49df",
+      "output": {
+        "utterance_id": "fe66d011-61aa-403e-9e8f-77a6e8be8d95",
+        "reference_response": "Warming a model reduces one-time startup and compilation effects, making benchmark results more representative of steady-state performance.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "1799e4c2-ae0d-48de-86a4-64bcbda11963",
+      "category": "ordinary",
+      "transcript": "What is a sandbox entitlement?",
+      "latency_seconds": 1.054221,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0c47029eeb4b70bc016a64782165e8819a9269b363c2301498",
+      "output": {
+        "utterance_id": "1799e4c2-ae0d-48de-86a4-64bcbda11963",
+        "reference_response": "A sandbox entitlement is a permission that lets an app access specific protected resources or capabilities under the system sandbox.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a2fa9733-372e-45a0-a367-aad7af258963",
+      "category": "ordinary",
+      "transcript": "Why should secrets stay out of argv?",
+      "latency_seconds": 1.101031,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02632ccd56df45f1016a6478226da4819bba6605b4ff349104",
+      "output": {
+        "utterance_id": "a2fa9733-372e-45a0-a367-aad7af258963",
+        "reference_response": "Secrets in argv can be exposed through process listings, logs, shell history, monitoring tools, and crash reports. Use protected input or environment mechanisms instead.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "4523dad7-d680-4883-97a3-4c2dfd424350",
+      "category": "ordinary",
+      "transcript": "Summarize the role of a coordinator.",
+      "latency_seconds": 0.950686,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_064de164805797d6016a647823811481988d4c5b1be116f2f5",
+      "output": {
+        "utterance_id": "4523dad7-d680-4883-97a3-4c2dfd424350",
+        "reference_response": "A coordinator organizes tasks, tracks progress, and connects people or systems to keep work aligned and moving.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "b12b4dc4-1ab0-4568-9ac0-8feb6b43eff2",
+      "category": "ordinary",
+      "transcript": "What is a causal identifier?",
+      "latency_seconds": 0.985716,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0808c165bfce955d016a64782472fc819898f3562ac68501a9",
+      "output": {
+        "utterance_id": "b12b4dc4-1ab0-4568-9ac0-8feb6b43eff2",
+        "reference_response": "A causal identifier links an event to the prior events that influenced it, helping systems track cause-and-effect relationships.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "ad89f116-96d1-4bca-bb92-e920a4ac8a88",
+      "category": "ordinary",
+      "transcript": "Explain bounded buffering.",
+      "latency_seconds": 1.114806,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_09ac51b98ab90943016a6478257118819a83c874b025a31641",
+      "output": {
+        "utterance_id": "ad89f116-96d1-4bca-bb92-e920a4ac8a88",
+        "reference_response": "Bounded buffering limits how many items a system stores temporarily, preventing memory growth but potentially slowing or rejecting producers when full.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "6e3b8991-8972-4960-af9d-ebe94d3bb1f3",
+      "category": "ordinary",
+      "transcript": "Why redact data before persistence?",
+      "latency_seconds": 0.941441,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_021d7d617dd17e15016a6478268bdc8198a6df05775059a846",
+      "output": {
+        "utterance_id": "6e3b8991-8972-4960-af9d-ebe94d3bb1f3",
+        "reference_response": "Redacting data before persistence reduces privacy, security, and compliance risks if stored data is accessed or exposed.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "59aa20ec-07f9-49d6-ba5d-73150ab37806",
+      "category": "ordinary",
+      "transcript": "What is a stale transcript revision?",
+      "latency_seconds": 0.99783,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0f680bdbf6b2329a016a6478278bc48198b71a2cb0ceec4cca",
+      "output": {
+        "utterance_id": "59aa20ec-07f9-49d6-ba5d-73150ab37806",
+        "reference_response": "A stale transcript revision is an older version that no longer reflects the latest transcript changes.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "bcaea1b7-b2ac-493e-9811-3ebd237189e1",
+      "category": "ordinary",
+      "transcript": "How does barge-in improve a voice interface?",
+      "latency_seconds": 1.05117,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_073564b6650524c8016a64782880b881988d52cf94d869ddeb",
+      "output": {
+        "utterance_id": "bcaea1b7-b2ac-493e-9811-3ebd237189e1",
+        "reference_response": "Barge-in lets users interrupt the assistant, making conversations faster, more natural, and better suited to corrections or urgent requests.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "c41c3395-e7fb-4774-b56a-a0994dac28d1",
+      "category": "ordinary",
+      "transcript": "What is semantic endpointing?",
+      "latency_seconds": 1.138597,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_046a6ff69a1dafd4016a6478299b5c819894151216bbdac99b",
+      "output": {
+        "utterance_id": "c41c3395-e7fb-4774-b56a-a0994dac28d1",
+        "reference_response": "Semantic endpointing detects when a speaker has finished a thought using meaning and context, not just silence duration.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "da778e5e-20d7-4273-8861-858801325bc1",
+      "category": "ordinary",
+      "transcript": "Why separate conversation from coding work?",
+      "latency_seconds": 1.187133,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_07173c73f3f002f7016a64782ab388819a8043451b851c2afb",
+      "output": {
+        "utterance_id": "da778e5e-20d7-4273-8861-858801325bc1",
+        "reference_response": "Separating conversation from coding work keeps dialogue responsive while code changes remain focused, traceable, and safely managed.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "d45658ff-5953-426f-80a5-d9fdced74e66",
+      "category": "ordinary",
+      "transcript": "What is a grounded status answer?",
+      "latency_seconds": 1.064935,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_044c1d0e940fe297016a64782bded0819bbbe312f029ee67f2",
+      "output": {
+        "utterance_id": "d45658ff-5953-426f-80a5-d9fdced74e66",
+        "reference_response": "A grounded status answer reports verified current state from available evidence, without guessing or claiming unconfirmed progress.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "907ee5af-d20e-48a4-8bb6-465de2229073",
+      "category": "ordinary",
+      "transcript": "Why is an append-only log useful?",
+      "latency_seconds": 1.094321,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_022f3f172f4a3265016a64782cf428819ab950c6066c83bb8b",
+      "output": {
+        "utterance_id": "907ee5af-d20e-48a4-8bb6-465de2229073",
+        "reference_response": "An append-only log preserves history, supports auditing, and makes recovery and debugging easier by avoiding destructive updates.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "3c607d14-645e-4178-9f5d-37e3678dffa1",
+      "category": "ordinary",
+      "transcript": "Tell me a short joke about compilers.",
+      "latency_seconds": 0.929348,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_09275670d11398e8016a64782e0520819b857b21f7030a2ce6",
+      "output": {
+        "utterance_id": "3c607d14-645e-4178-9f5d-37e3678dffa1",
+        "reference_response": "Why did the compiler break up with the code? It just couldn\u2019t resolve their issues.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "7a6ed6a2-c814-404c-bc1d-f412a8a7f894",
+      "category": "ordinary",
+      "transcript": "Give me a concise definition of idempotency.",
+      "latency_seconds": 0.9429,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_019506ee21c8b02c016a64782ef3e881998de9e5d3e955e457",
+      "output": {
+        "utterance_id": "7a6ed6a2-c814-404c-bc1d-f412a8a7f894",
+        "reference_response": "Idempotency means repeating an operation produces the same result as performing it once.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "369ff9ac-4766-4299-811a-303bd3089880",
+      "category": "ordinary",
+      "transcript": "What is the difference between latency and throughput?",
+      "latency_seconds": 0.977928,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0316117ee4a576ce016a64782fe6908199bac7639e84a825cb",
+      "output": {
+        "utterance_id": "369ff9ac-4766-4299-811a-303bd3089880",
+        "reference_response": "Latency is the time one operation takes; throughput is how many operations complete per unit of time.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "ac81225f-53b3-4399-a7d5-5398e1c5fc3c",
+      "category": "ordinary",
+      "transcript": "Why can model loading distort a benchmark?",
+      "latency_seconds": 1.11745,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0eafd50f1d27a9af016a647830e36c8198bb0fb3fb16fdbf80",
+      "output": {
+        "utterance_id": "ac81225f-53b3-4399-a7d5-5398e1c5fc3c",
+        "reference_response": "Model loading can add startup time, memory pressure, and caching effects, making the benchmark measure loading overhead rather than steady-state performance.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "7349b823-8d71-4ecb-a324-20f75b3393ba",
+      "category": "ordinary",
+      "transcript": "Explain the principle of least privilege.",
+      "latency_seconds": 1.05255,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0b13c6bd506507a8016a647832083c8199a86a2d53f9db272e",
+      "output": {
+        "utterance_id": "7349b823-8d71-4ecb-a324-20f75b3393ba",
+        "reference_response": "The principle of least privilege means giving users and systems only the access they need to perform their tasks\u2014no more.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "b308339b-787c-49f9-8bd1-8889fe1eba2a",
+      "category": "ordinary",
+      "transcript": "What does local-first mean here?",
+      "latency_seconds": 1.03479,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0fb0e79a47265924016a64783309988198b0b3e8cecc74facb",
+      "output": {
+        "utterance_id": "b308339b-787c-49f9-8bd1-8889fe1eba2a",
+        "reference_response": "Local-first means the app works primarily on your device, with data stored and usable locally; syncing to a server is secondary or optional.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "c67106fb-b55c-4824-bda0-d5e9c20bdccc",
+      "category": "ordinary",
+      "transcript": "Why use strict structured output?",
+      "latency_seconds": 1.07874,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0b665d89f2d599a6016a647834220881988fba4023423f8eaa",
+      "output": {
+        "utterance_id": "c67106fb-b55c-4824-bda0-d5e9c20bdccc",
+        "reference_response": "Strict structured output keeps responses predictable, valid, and easy for software to parse reliably.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "c30bbdd9-53bb-43d1-abdb-00d4a2b82c2f",
+      "category": "ordinary",
+      "transcript": "What is a race condition?",
+      "latency_seconds": 1.028539,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0f3a97effba9d03d016a6478352ff88199aed5dc12a846673e",
+      "output": {
+        "utterance_id": "c30bbdd9-53bb-43d1-abdb-00d4a2b82c2f",
+        "reference_response": "A race condition occurs when concurrent operations access shared data and the result depends on their timing.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "d2e9e3c5-6ef6-4f0c-a319-e89bfe5fc6c8",
+      "category": "ordinary",
+      "transcript": "How can cancellation become stale?",
+      "latency_seconds": 1.749335,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_04b6a983e8362845016a6478365370819ba3180372facf279b",
+      "output": {
+        "utterance_id": "d2e9e3c5-6ef6-4f0c-a319-e89bfe5fc6c8",
+        "reference_response": "Cancellation can become stale when a delayed request targets work that has already completed, been replaced, or changed state.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "4feea244-4f96-4c10-9846-270630fcf4c2",
+      "category": "ordinary",
+      "transcript": "Why should audio callbacks avoid disk I/O?",
+      "latency_seconds": 1.359249,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0e08c02a0d6b40ce016a6478380a40819baa6e3751513706c7",
+      "output": {
+        "utterance_id": "4feea244-4f96-4c10-9846-270630fcf4c2",
+        "reference_response": "Audio callbacks must stay real-time: disk I/O can block unpredictably, causing glitches, underruns, latency, or dropped audio.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "387107a9-2ef8-476c-99f5-61e36417f10d",
+      "category": "ordinary",
+      "transcript": "Explain memory pressure on Apple Silicon.",
+      "latency_seconds": 1.051217,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_023e277269c30857016a6478394a808199bfa752f9141bbdb7",
+      "output": {
+        "utterance_id": "387107a9-2ef8-476c-99f5-61e36417f10d",
+        "reference_response": "Memory pressure measures how hard the system works to provide RAM. Green is healthy; yellow or red means macOS may compress memory or use swap.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a94f840b-2660-4e7c-a5a1-3615488d5bdc",
+      "category": "ordinary",
+      "transcript": "What is unified memory?",
+      "latency_seconds": 1.08597,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_09e952ee8701535a016a64783a5d888198979d89b2b1b26ad4",
+      "output": {
+        "utterance_id": "a94f840b-2660-4e7c-a5a1-3615488d5bdc",
+        "reference_response": "Unified memory is a shared pool of RAM used by the CPU and GPU, reducing data copying and improving efficiency.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "14fefd80-4df8-4c32-87ee-a12f6a3cde31",
+      "category": "ordinary",
+      "transcript": "Why can swap hurt real-time audio?",
+      "latency_seconds": 0.980264,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0d6fb01bacfd26be016a64783b70b4819889a6ae83208d3691",
+      "output": {
+        "utterance_id": "14fefd80-4df8-4c32-87ee-a12f6a3cde31",
+        "reference_response": "Swap can cause page faults and unpredictable disk I/O, adding latency and dropouts to real-time audio.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "81f398be-6300-45f7-b0e6-3a27c0931119",
+      "category": "ordinary",
+      "transcript": "What does quantization trade off?",
+      "latency_seconds": 1.043246,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_00c15fb02343e9cc016a64783c68b4819b836210e8d255640f",
+      "output": {
+        "utterance_id": "81f398be-6300-45f7-b0e6-3a27c0931119",
+        "reference_response": "Quantization reduces model size and speeds inference, but can trade away numerical precision and sometimes accuracy.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "346834b8-a03e-4c05-b6ec-235dd31db76d",
+      "category": "ordinary",
+      "transcript": "Explain a mixture-of-experts model.",
+      "latency_seconds": 1.042667,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0bd5fe68a797c7ef016a64783d755c819abb0c85f2e6b24f03",
+      "output": {
+        "utterance_id": "346834b8-a03e-4c05-b6ec-235dd31db76d",
+        "reference_response": "A mixture-of-experts model routes each input to a small subset of specialized neural networks, improving efficiency while preserving broad capability.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "76cd3ff3-7b46-4870-8ce6-d8232f9ba94b",
+      "category": "ordinary",
+      "transcript": "What is prompt caching?",
+      "latency_seconds": 1.099995,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_042a61ad35b61c44016a64783e8a58819bacf9f0c74a78794c",
+      "output": {
+        "utterance_id": "76cd3ff3-7b46-4870-8ce6-d8232f9ba94b",
+        "reference_response": "Prompt caching reuses repeated prompt content to reduce latency and cost when calling a language model.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "adaf2a43-313b-44d8-bc2c-c51a53efbb6a",
+      "category": "ordinary",
+      "transcript": "Why measure admission delay separately?",
+      "latency_seconds": 1.007169,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_06a8e883d965d58b016a64783f9a88819981148c11bf2a5593",
+      "output": {
+        "utterance_id": "adaf2a43-313b-44d8-bc2c-c51a53efbb6a",
+        "reference_response": "Admission delay shows how long requests wait before processing, separating queueing time from execution time.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "61b866fe-781e-4d29-bc78-90db63259218",
+      "category": "ordinary",
+      "transcript": "What is a regression corpus?",
+      "latency_seconds": 1.038943,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0a2a964b9546b0f1016a6478409e1c819bbb972c958618d4e9",
+      "output": {
+        "utterance_id": "61b866fe-781e-4d29-bc78-90db63259218",
+        "reference_response": "A regression corpus is a collection of tests or examples used to ensure updates don\u2019t reintroduce previously fixed problems.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "853efc56-9466-4cfd-9bca-9c56c843ee51",
+      "category": "ordinary",
+      "transcript": "Why freeze a scoring rubric first?",
+      "latency_seconds": 1.050573,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0ee02f5a41a7d261016a647841ad60819b9c06067fd9e41f68",
+      "output": {
+        "utterance_id": "853efc56-9466-4cfd-9bca-9c56c843ee51",
+        "reference_response": "Freezing the rubric first keeps evaluation consistent, preventing shifting criteria from biasing comparisons or masking regressions.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "9bafd2a6-2b59-47d3-bf35-fc8a938b5d7f",
+      "category": "ordinary",
+      "transcript": "What makes an acknowledgement trustworthy?",
+      "latency_seconds": 1.061363,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_034ae207b25d3c10016a647842b8a48199ad8cf5ba9375c6bc",
+      "output": {
+        "utterance_id": "9bafd2a6-2b59-47d3-bf35-fc8a938b5d7f",
+        "reference_response": "A trustworthy acknowledgement is clear, specific, accurate, and confirms what was received without claiming more than is known.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "ba3a0146-a978-4c8a-9dc8-2e84056d3fbe",
+      "category": "ordinary",
+      "transcript": "How is a proposal different from a dispatch?",
+      "latency_seconds": 1.04581,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_08fbc67a22f129d5016a647843c364819b8523bc43e878a2f3",
+      "output": {
+        "utterance_id": "ba3a0146-a978-4c8a-9dc8-2e84056d3fbe",
+        "reference_response": "A proposal suggests an action for consideration; a dispatch is an instruction or task sent for execution.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a722f7e8-f346-45ca-8a79-6b1f9d572e86",
+      "category": "ordinary",
+      "transcript": "Why expire confirmations?",
+      "latency_seconds": 1.094509,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_01650e2cca6abcae016a647844cdec819985c36db1ff85c02a",
+      "output": {
+        "utterance_id": "a722f7e8-f346-45ca-8a79-6b1f9d572e86",
+        "reference_response": "Confirmations expire to prevent stale approvals from authorizing actions after circumstances or intent may have changed.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "6729bdc6-bee4-496b-92e2-76339d3217e1",
+      "category": "ordinary",
+      "transcript": "What is an application container?",
+      "latency_seconds": 1.375592,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_00bef0c34a93cfe9016a64784620ec819bbdd008e37659856d",
+      "output": {
+        "utterance_id": "6729bdc6-bee4-496b-92e2-76339d3217e1",
+        "reference_response": "An application container packages software and its dependencies so it runs consistently across environments.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "68e5623a-4ef2-4d2b-9927-10283233f057",
+      "category": "ordinary",
+      "transcript": "Why keep helper environments minimal?",
+      "latency_seconds": 1.048615,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0a2c54b83d7d411e016a6478475dc4819bb4bd59472bf7a97c",
+      "output": {
+        "utterance_id": "68e5623a-4ef2-4d2b-9927-10283233f057",
+        "reference_response": "Minimal helper environments reduce dependency conflicts, startup time, security risk, and maintenance overhead.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "277cb57b-2e0e-41d9-b57b-b393fe61dc45",
+      "category": "ordinary",
+      "transcript": "What does source-pinned mean?",
+      "latency_seconds": 1.089593,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_05a47015fb72999a016a64784878dc819a816a0f93420ec1a4",
+      "output": {
+        "utterance_id": "277cb57b-2e0e-41d9-b57b-b393fe61dc45",
+        "reference_response": "Source-pinned means tied to a specific, verified source or version, so it won\u2019t change unexpectedly.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "8c4205e6-585d-48de-ae9d-6c1e60291b65",
+      "category": "ordinary",
+      "transcript": "Why verify a model response UUID?",
+      "latency_seconds": 2.222713,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0076adb2192b7cad016a64784a856481988ef4f0201c8437ee",
+      "output": {
+        "utterance_id": "8c4205e6-585d-48de-ae9d-6c1e60291b65",
+        "reference_response": "Verifying the model response UUID helps correlate replies, detect mismatches, and ensure the response belongs to the current request.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "e3c9ef29-0b89-43f1-8dbf-ed3280cf25c9",
+      "category": "ordinary",
+      "transcript": "What is graceful degradation?",
+      "latency_seconds": 2.150811,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0ff8107843fe874b016a64784bc068819b8c5c3dbd885e1b4c",
+      "output": {
+        "utterance_id": "e3c9ef29-0b89-43f1-8dbf-ed3280cf25c9",
+        "reference_response": "Graceful degradation means a system continues providing reduced functionality when parts of it fail or resources are limited.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "51a143d1-00f6-4584-92ce-f5348294e36c",
+      "category": "ordinary",
+      "transcript": "Why should a timeout remain visible?",
+      "latency_seconds": 0.986891,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_073a7c866b0d59f8016a64784dca48819bb001c77e41c69722",
+      "output": {
+        "utterance_id": "51a143d1-00f6-4584-92ce-f5348294e36c",
+        "reference_response": "A visible timeout helps users understand that an operation ended due to time limits rather than silently failing.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a5d658a1-0c30-4f66-a1ea-f585d52b191b",
+      "category": "ordinary",
+      "transcript": "What is a terminal-neutral observer?",
+      "latency_seconds": 1.185977,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_00c03fbaec4a7928016a64784ec9508198a283b2012a8cc5d8",
+      "output": {
+        "utterance_id": "a5d658a1-0c30-4f66-a1ea-f585d52b191b",
+        "reference_response": "A terminal-neutral observer is an observer that does not favor or depend on a particular terminal, endpoint, or outcome.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "9c8d1447-6096-433a-8bb2-9bfccb5b71e6",
+      "category": "ordinary",
+      "transcript": "Summarize the VibeTalker product promise.",
+      "latency_seconds": 0.989292,
+      "valid": true,
+      "expected_operation": null,
+      "actual_operation": null,
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_003efcf3ecdac690016a64784ff5e481989c2926b764d809ca",
+      "output": {
+        "utterance_id": "9c8d1447-6096-433a-8bb2-9bfccb5b71e6",
+        "reference_response": "VibeTalker promises natural voice interaction that connects users with helpful, responsive AI while coordinating tasks reliably.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "b0020b93-9356-4218-8b03-73e2e9a75387",
+      "category": "dispatch",
+      "transcript": "Add a unit test for empty transcript rejection.",
+      "latency_seconds": 0.982269,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_072b522b9ee225c7016a647850f9c4819ab3ccddb8c06e3f70",
+      "output": {
+        "utterance_id": "b0020b93-9356-4218-8b03-73e2e9a75387",
+        "reference_response": "I\u2019ll request a unit test for rejecting empty transcripts.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Add a unit test for empty transcript rejection."
+        }
+      }
+    },
+    {
+      "utterance_id": "7a37ff74-a7e5-4e97-8eb9-d40bef314c0d",
+      "category": "dispatch",
+      "transcript": "Create a README section explaining the event ledger.",
+      "latency_seconds": 1.037465,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_00e2375bf602b057016a647851edac819a83e53c2bec366851",
+      "output": {
+        "utterance_id": "7a37ff74-a7e5-4e97-8eb9-d40bef314c0d",
+        "reference_response": "I\u2019ll request that the README include a section explaining the event ledger.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Create a README section explaining the event ledger."
+        }
+      }
+    },
+    {
+      "utterance_id": "6a7be881-d580-4740-b8c9-a3f977c56b7e",
+      "category": "dispatch",
+      "transcript": "Fix the typo in the sandbox policy error message.",
+      "latency_seconds": 1.034439,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0303b5723c0c7102016a647852f648819a89981696bd7cb7ac",
+      "output": {
+        "utterance_id": "6a7be881-d580-4740-b8c9-a3f977c56b7e",
+        "reference_response": "I\u2019ll request that the typo in the sandbox policy error message be fixed.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Fix the typo in the sandbox policy error message."
+        }
+      }
+    },
+    {
+      "utterance_id": "dfb8b536-8a8c-40cd-af94-9446ab0ae729",
+      "category": "dispatch",
+      "transcript": "Implement bounded retry for the readiness probe.",
+      "latency_seconds": 1.040032,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_08c523e66660fc6d016a6478540bac819aa1d42370c3cac7db",
+      "output": {
+        "utterance_id": "dfb8b536-8a8c-40cd-af94-9446ab0ae729",
+        "reference_response": "I\u2019ll send this implementation request to the coding agent.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Implement bounded retry for the readiness probe."
+        }
+      }
+    },
+    {
+      "utterance_id": "6c0f5ec8-e4b3-4fae-aca1-aa6f5eef489b",
+      "category": "dispatch",
+      "transcript": "Refactor the response decoder to share error parsing.",
+      "latency_seconds": 1.046351,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_01b009654a7cd39f016a6478551210819882131b45d0df7394",
+      "output": {
+        "utterance_id": "6c0f5ec8-e4b3-4fae-aca1-aa6f5eef489b",
+        "reference_response": "I can request that refactor.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Refactor the response decoder to share error parsing."
+        }
+      }
+    },
+    {
+      "utterance_id": "0646370b-6a52-44b0-9050-d91e8def9524",
+      "category": "dispatch",
+      "transcript": "Write a test for stale proposal confirmation.",
+      "latency_seconds": 2.440035,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_013e5c8e9b06b584016a6478561be8819aac69c625d4fc39e1",
+      "output": {
+        "utterance_id": "0646370b-6a52-44b0-9050-d91e8def9524",
+        "reference_response": "I\u2019ll request a test for stale proposal confirmation.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Write a test for stale proposal confirmation."
+        }
+      }
+    },
+    {
+      "utterance_id": "7e51bede-15d1-4ac6-ac22-1ed8fdf22f7a",
+      "category": "dispatch",
+      "transcript": "Update the observer help text with the default path.",
+      "latency_seconds": 0.945692,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_06bfcd32d1af9fa6016a6478588eec819a9477b2caff5ba4dc",
+      "output": {
+        "utterance_id": "7e51bede-15d1-4ac6-ac22-1ed8fdf22f7a",
+        "reference_response": "I\u2019ll request an update to the observer help text with the default path.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Update the observer help text with the default path."
+        }
+      }
+    },
+    {
+      "utterance_id": "d3934346-8200-41cb-95af-f0c23bcfbf13",
+      "category": "dispatch",
+      "transcript": "Add validation for an empty model identifier.",
+      "latency_seconds": 1.04778,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02298e57957c0084016a6478597e50819b8923caa45ac9fcc2",
+      "output": {
+        "utterance_id": "d3934346-8200-41cb-95af-f0c23bcfbf13",
+        "reference_response": "I\u2019ll request a coding task to add validation for an empty model identifier.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Add validation for an empty model identifier."
+        }
+      }
+    },
+    {
+      "utterance_id": "0337038e-f2ba-472c-ad73-b302fe07d769",
+      "category": "dispatch",
+      "transcript": "Create a fixture for a malformed completed response.",
+      "latency_seconds": 1.174471,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0c2fe6f525446c66016a64785addd481989a4e48369fc443d5",
+      "output": {
+        "utterance_id": "0337038e-f2ba-472c-ad73-b302fe07d769",
+        "reference_response": "I\u2019ll request creation of that fixture.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Create a fixture for a malformed completed response."
+        }
+      }
+    },
+    {
+      "utterance_id": "1d90d374-a0b9-4b73-bdf3-302055a510a5",
+      "category": "dispatch",
+      "transcript": "Rename the local variable to clarify its purpose.",
+      "latency_seconds": 1.077167,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0cc489cf583238da016a64785bcea48199a623ff45641a62a1",
+      "output": {
+        "utterance_id": "1d90d374-a0b9-4b73-bdf3-302055a510a5",
+        "reference_response": "I\u2019ll request that the local variable be renamed for clarity.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Rename the local variable to clarify its purpose."
+        }
+      }
+    },
+    {
+      "utterance_id": "d4b1060f-a138-49e0-916c-b968ff982e8d",
+      "category": "dispatch",
+      "transcript": "Add a diagnostic event when the helper exits.",
+      "latency_seconds": 1.266405,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_04adaaac2853794e016a64785cea9c819aa1ea2600bf7d442b",
+      "output": {
+        "utterance_id": "d4b1060f-a138-49e0-916c-b968ff982e8d",
+        "reference_response": "I\u2019ll request this change: add a diagnostic event when the helper exits.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Add a diagnostic event when the helper exits."
+        }
+      }
+    },
+    {
+      "utterance_id": "38506b75-d4f8-4b1e-9ce8-60197fbaafeb",
+      "category": "dispatch",
+      "transcript": "Implement a test for two simultaneous start requests.",
+      "latency_seconds": 0.992376,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0011bb7f734a3557016a64785e1478819abee01ed3eb8875a2",
+      "output": {
+        "utterance_id": "38506b75-d4f8-4b1e-9ce8-60197fbaafeb",
+        "reference_response": "I\u2019ll request a test covering two simultaneous start requests.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Implement a test for two simultaneous start requests."
+        }
+      }
+    },
+    {
+      "utterance_id": "f8c4caf4-b521-4242-a1ea-ac03bed9a495",
+      "category": "dispatch",
+      "transcript": "Update the documentation with the latency budget.",
+      "latency_seconds": 1.02772,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_04d782aa60b6d3ec016a64785f0fe8819b895377676dd0cd92",
+      "output": {
+        "utterance_id": "f8c4caf4-b521-4242-a1ea-ac03bed9a495",
+        "reference_response": "I can request that the documentation be updated with the latency budget.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Update the documentation with the latency budget."
+        }
+      }
+    },
+    {
+      "utterance_id": "5ee84fb2-313b-44f2-8ceb-01c2e13e58e7",
+      "category": "dispatch",
+      "transcript": "Fix the console so a running job rejects new work.",
+      "latency_seconds": 1.040446,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_08aaf52b91c89171016a6478601864819bbc97ca91f169bd2b",
+      "output": {
+        "utterance_id": "5ee84fb2-313b-44f2-8ceb-01c2e13e58e7",
+        "reference_response": "I\u2019ll request a code change so the console rejects new work while a job is running.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Fix the console so a running job rejects new work."
+        }
+      }
+    },
+    {
+      "utterance_id": "097fa3b8-3003-4858-a3be-4f6d3e2b57b4",
+      "category": "dispatch",
+      "transcript": "Add a test proving credentials are redacted.",
+      "latency_seconds": 0.928219,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_01afe3c462761348016a64786118f88199a0c94d17472ba807",
+      "output": {
+        "utterance_id": "097fa3b8-3003-4858-a3be-4f6d3e2b57b4",
+        "reference_response": "I\u2019ll request that a test be added to verify credentials are redacted.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Add a test proving credentials are redacted."
+        }
+      }
+    },
+    {
+      "utterance_id": "ab3eecbc-3884-422c-9fcb-9ce3f0946dbd",
+      "category": "dispatch",
+      "transcript": "Create a small helper for monotonic timestamps.",
+      "latency_seconds": 1.176296,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0de9c5b68c91bd2b016a6478621de4819b86b9808d24fc1c9f",
+      "output": {
+        "utterance_id": "ab3eecbc-3884-422c-9fcb-9ce3f0946dbd",
+        "reference_response": "I\u2019ll request that a small helper for monotonic timestamps be created.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Create a small helper for monotonic timestamps."
+        }
+      }
+    },
+    {
+      "utterance_id": "3c9f3c8b-fae6-4918-be2a-0f6ff1ccf12f",
+      "category": "dispatch",
+      "transcript": "Improve the error shown for a missing runtime artifact.",
+      "latency_seconds": 3.141889,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_096705bcef995d6f016a6478644a208199becef517f51b4129",
+      "output": {
+        "utterance_id": "3c9f3c8b-fae6-4918-be2a-0f6ff1ccf12f",
+        "reference_response": "I\u2019ll request an update to improve the missing runtime artifact error.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Improve the error shown for a missing runtime artifact."
+        }
+      }
+    },
+    {
+      "utterance_id": "b33542ef-6758-47f1-90bc-1fec053b44c8",
+      "category": "dispatch",
+      "transcript": "Add cancellation coverage to the coordinator tests.",
+      "latency_seconds": 0.932997,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0a0273db0f40bc26016a64786658148199a2f26da42300f58e",
+      "output": {
+        "utterance_id": "b33542ef-6758-47f1-90bc-1fec053b44c8",
+        "reference_response": "I\u2019ll request adding cancellation coverage to the coordinator tests.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Add cancellation coverage to the coordinator tests."
+        }
+      }
+    },
+    {
+      "utterance_id": "f9297fd9-b0c8-4c1b-bffa-e635a9e084c6",
+      "category": "dispatch",
+      "transcript": "Document how to run the source-built observer.",
+      "latency_seconds": 1.008297,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_015aa33dfe110d48016a6478675f2c8199a92b04745333c19c",
+      "output": {
+        "utterance_id": "f9297fd9-b0c8-4c1b-bffa-e635a9e084c6",
+        "reference_response": "I\u2019ll request documentation for running the source-built observer.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Document how to run the source-built observer."
+        }
+      }
+    },
+    {
+      "utterance_id": "a6c09adb-0f96-4cad-bd06-a527b99febb4",
+      "category": "dispatch",
+      "transcript": "Implement a bounded recent-history option.",
+      "latency_seconds": 1.204643,
+      "valid": true,
+      "expected_operation": "start",
+      "actual_operation": "start",
+      "model_operation": "start",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_07574916a271f620016a647868660881989cd403d8084392d4",
+      "output": {
+        "utterance_id": "a6c09adb-0f96-4cad-bd06-a527b99febb4",
+        "reference_response": "I\u2019ll request the coding task to implement a bounded recent-history option.",
+        "pi_request": {
+          "operation": "start",
+          "instruction": "Implement a bounded recent-history option."
+        }
+      }
+    },
+    {
+      "utterance_id": "7e1d148f-eea6-46be-8764-e71c84f979f5",
+      "category": "status",
+      "transcript": "What is pi doing right now?",
+      "latency_seconds": 1.039756,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_048ed531530f755f016a64786980948199a91a40f507f9ea30",
+      "output": {
+        "utterance_id": "7e1d148f-eea6-46be-8764-e71c84f979f5",
+        "reference_response": "I\u2019ll check the current status of pi and report back with grounded information.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "5d86205f-7e94-4a17-baaa-ad0c0c464dd6",
+      "category": "status",
+      "transcript": "Give me the current coding job status.",
+      "latency_seconds": 0.886892,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_092a9cd1d5462b7f016a64786a8a7c819bb736dc2d55168200",
+      "output": {
+        "utterance_id": "5d86205f-7e94-4a17-baaa-ad0c0c464dd6",
+        "reference_response": "I\u2019ll check the current coding job status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "d47c6538-594b-4357-b278-1015fe30761a",
+      "category": "status",
+      "transcript": "Is the coding task still running?",
+      "latency_seconds": 0.962365,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0773f7d339eb8766016a64786b83fc819ab4c931783dc7b165",
+      "output": {
+        "utterance_id": "d47c6538-594b-4357-b278-1015fe30761a",
+        "reference_response": "I\u2019ll check the coding task\u2019s current status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "a113dc5d-86d4-4445-ae8c-69e6f9801da5",
+      "category": "status",
+      "transcript": "Has pi finished the current job?",
+      "latency_seconds": 0.695006,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0c98be7311729774016a64786c65788199a0f9a60c1e9bda85",
+      "output": {
+        "utterance_id": "a113dc5d-86d4-4445-ae8c-69e6f9801da5",
+        "reference_response": "I\u2019ll check the current job status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "4a088481-e92a-4b20-8990-0de6710a2228",
+      "category": "status",
+      "transcript": "What work is active in the sandbox?",
+      "latency_seconds": 1.024905,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0172b07e25e2b85d016a64786d2978819a9076c18836ca6be2",
+      "output": {
+        "utterance_id": "4a088481-e92a-4b20-8990-0de6710a2228",
+        "reference_response": "I\u2019ll check the Coordinator for grounded information about active sandbox work.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "3d11c919-ee09-47b3-87d3-be8d008f687f",
+      "category": "status",
+      "transcript": "Tell me the grounded status of the job.",
+      "latency_seconds": 2.839291,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0e83da6fe19f39ed016a64786e6d248198b578f015bd7abb80",
+      "output": {
+        "utterance_id": "3d11c919-ee09-47b3-87d3-be8d008f687f",
+        "reference_response": "I\u2019ll retrieve the grounded status of the job.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "1045bac9-1307-493a-8b17-84cd7f28510a",
+      "category": "status",
+      "transcript": "Is there an active coding request?",
+      "latency_seconds": 0.954132,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02ab553f47641774016a647870f5d8819ab511fa5797283c6c",
+      "output": {
+        "utterance_id": "1045bac9-1307-493a-8b17-84cd7f28510a",
+        "reference_response": "I'll check the current coding request status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "e90b27ee-4406-4207-bcf9-fe4ebb52ada4",
+      "category": "status",
+      "transcript": "Where is the current task up to?",
+      "latency_seconds": 0.865712,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0d652501b05098ac016a647871e79c81988db8cadf0ef84f50",
+      "output": {
+        "utterance_id": "e90b27ee-4406-4207-bcf9-fe4ebb52ada4",
+        "reference_response": "I\u2019ll check the current task\u2019s status and report back with grounded details.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "45c33a26-b6cd-4c92-9976-49fbdc8b68f3",
+      "category": "status",
+      "transcript": "Did the last coding task complete?",
+      "latency_seconds": 0.925838,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_056cd77412580e24016a647872d904819baa85a82da7466ec3",
+      "output": {
+        "utterance_id": "45c33a26-b6cd-4c92-9976-49fbdc8b68f3",
+        "reference_response": "I\u2019ll check the current status of the last coding task.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "fc07b821-c0d4-467a-93fa-fa9427eb3f88",
+      "category": "status",
+      "transcript": "What is the current pi lifecycle state?",
+      "latency_seconds": 1.004711,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_02b50bc04b44c023016a647873b11081998df75241c20fcae3",
+      "output": {
+        "utterance_id": "fc07b821-c0d4-467a-93fa-fa9427eb3f88",
+        "reference_response": "I\u2019ll check the current pi lifecycle state.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "27ec6974-60d7-41c5-9661-ad886389e2de",
+      "category": "status",
+      "transcript": "Is pi idle or working?",
+      "latency_seconds": 0.906179,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0f5bbbe55f3abecb016a647874b678819991d3e8472c592abf",
+      "output": {
+        "utterance_id": "27ec6974-60d7-41c5-9661-ad886389e2de",
+        "reference_response": "I\u2019ll check pi\u2019s current status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "f2762d9c-bab0-4b5a-8dfb-b9264df69902",
+      "category": "status",
+      "transcript": "Has the requested edit been verified?",
+      "latency_seconds": 0.999354,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0ae062bc88628ba0016a6478759e30819aa2de56ef77d46fad",
+      "output": {
+        "utterance_id": "f2762d9c-bab0-4b5a-8dfb-b9264df69902",
+        "reference_response": "I don\u2019t have evidence about whether the requested edit has been verified.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "58a71428-a59d-45bc-b9c7-b2d1ef5a5306",
+      "category": "status",
+      "transcript": "What does the job controller report?",
+      "latency_seconds": 1.10659,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_03db5b4599e4e8a1016a647876a9d4819a9597507456532865",
+      "output": {
+        "utterance_id": "58a71428-a59d-45bc-b9c7-b2d1ef5a5306",
+        "reference_response": "I\u2019ll check the Coordinator\u2019s grounded report for the current job status.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "e0646a3c-9300-44b0-96b8-6bbf3cc25423",
+      "category": "status",
+      "transcript": "Is cancellation currently pending?",
+      "latency_seconds": 0.871377,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0824bde1e44dad80016a647877b7688198afece697ae5b4cce",
+      "output": {
+        "utterance_id": "e0646a3c-9300-44b0-96b8-6bbf3cc25423",
+        "reference_response": "I can\u2019t determine whether cancellation is currently pending.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "ca71dcce-3187-43c1-bcc9-222c544f6046",
+      "category": "status",
+      "transcript": "Did the coding job fail?",
+      "latency_seconds": 1.179222,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_03f1a5628805437b016a647878c1a4819aad50a81e8d3c9364",
+      "output": {
+        "utterance_id": "ca71dcce-3187-43c1-bcc9-222c544f6046",
+        "reference_response": "I\u2019ll check the coding job status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "d993e91c-f3f8-4599-86ad-cdb57e5ff42e",
+      "category": "status",
+      "transcript": "Has any work started yet?",
+      "latency_seconds": 1.12413,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_06c2016c765f4d09016a647879c5dc8198a2327f02f13bc5e1",
+      "output": {
+        "utterance_id": "d993e91c-f3f8-4599-86ad-cdb57e5ff42e",
+        "reference_response": "I can\u2019t determine work status from the transcript alone.",
+        "pi_request": null
+      }
+    },
+    {
+      "utterance_id": "a469384f-fdc5-4fc2-841c-e828746f0cd7",
+      "category": "status",
+      "transcript": "What is happening with the sandbox task?",
+      "latency_seconds": 2.658959,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0fdbf3e092774efd016a64787ae5f8819aa7544d351eb28414",
+      "output": {
+        "utterance_id": "a469384f-fdc5-4fc2-841c-e828746f0cd7",
+        "reference_response": "I\u2019ll check the current sandbox task status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "26ebfb38-103d-477f-afbd-3d767ee3db99",
+      "category": "status",
+      "transcript": "Report the current coding progress.",
+      "latency_seconds": 0.938162,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0efa26b202daf9d9016a64787d8b28819bb9c1082315157820",
+      "output": {
+        "utterance_id": "26ebfb38-103d-477f-afbd-3d767ee3db99",
+        "reference_response": "I\u2019ll check the current coding progress.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "11afa54a-67df-43b2-8c0b-91c3bb8eb82e",
+      "category": "status",
+      "transcript": "Is the agent still processing my request?",
+      "latency_seconds": 0.932427,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": "status",
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_09ce453cc95ec020016a64787e7e50819a8fd599dc89e15a52",
+      "output": {
+        "utterance_id": "11afa54a-67df-43b2-8c0b-91c3bb8eb82e",
+        "reference_response": "I\u2019ll check the agent\u2019s current status.",
+        "pi_request": {
+          "operation": "status",
+          "instruction": null
+        }
+      }
+    },
+    {
+      "utterance_id": "a96c1652-1340-4e8f-900b-3053af96bb2d",
+      "category": "status",
+      "transcript": "What is the latest authoritative job state?",
+      "latency_seconds": 1.029297,
+      "valid": true,
+      "expected_operation": "status",
+      "actual_operation": "status",
+      "model_operation": null,
+      "model_utterance_id_matches": true,
+      "instruction_valid": true,
+      "response_id": "resp_0dc5cc2ba115d885016a64787f85448199be2c26ae2c762af7",
+      "output": {
+        "utterance_id": "a96c1652-1340-4e8f-900b-3053af96bb2d",
+        "reference_response": "The Coordinator will provide the latest authoritative job state.",
+        "pi_request": null
+      }
+    }
+  ]
+}

@@ -47,6 +47,13 @@ final class AppModel {
     var codingModelID: String {
         didSet { preferences.codingModelID = codingModelID }
     }
+    var interactionProvider: InteractionProvider {
+        didSet { preferences.interactionProvider = interactionProvider }
+    }
+    var interactionCredentialInput = ""
+    var interactionCredentialConfigured = false
+    var interactionCredentialSource = "Credential required"
+    var interactionCredentialStoredInKeychain = false
     var interactionEndpoint: String {
         didSet { preferences.interactionEndpoint = interactionEndpoint }
     }
@@ -125,6 +132,7 @@ final class AppModel {
         self.codingProvider = preferences.codingProvider
         self.codingBaseURL = preferences.codingBaseURL
         self.codingModelID = preferences.codingModelID
+        self.interactionProvider = preferences.interactionProvider
         self.interactionEndpoint = preferences.interactionEndpoint
         self.interactionModelID = preferences.interactionModelID
         self.voiceRuntimeImporter = voiceRuntimeImporter
@@ -139,6 +147,82 @@ final class AppModel {
             }
             await publish(.system, "VibeTalker native host initialized")
             refreshCodingCredentialStatus()
+            refreshInteractionCredentialStatus()
+        }
+    }
+
+    func refreshInteractionCredentialStatus() {
+        let provider = interactionProvider.credentialProvider
+        Task {
+            do {
+                if ProcessInfo.processInfo.environment[provider.environmentKey]?.isEmpty == false {
+                    interactionCredentialConfigured = true
+                    interactionCredentialSource = "Development environment"
+                    interactionCredentialStoredInKeychain = false
+                } else {
+                    interactionCredentialConfigured = try await credentialStore.contains(provider)
+                    interactionCredentialSource = interactionCredentialConfigured
+                        ? "Keychain configured"
+                        : "Credential required"
+                    interactionCredentialStoredInKeychain = interactionCredentialConfigured
+                }
+            } catch {
+                interactionCredentialConfigured = false
+                interactionCredentialSource = "Credential unavailable"
+                interactionCredentialStoredInKeychain = false
+                await publish(
+                    .error,
+                    "Could not inspect \(interactionProvider.displayName) credential: \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
+    func saveInteractionCredential() {
+        let interactionProvider = interactionProvider
+        let provider = interactionProvider.credentialProvider
+        let value = interactionCredentialInput
+        interactionCredentialInput = ""
+        Task {
+            do {
+                try await credentialStore.save(value, for: provider)
+                interactionCredentialConfigured = true
+                interactionCredentialSource = "Keychain configured"
+                interactionCredentialStoredInKeychain = true
+                await publish(
+                    .policy,
+                    "\(interactionProvider.displayName) credential saved in Keychain"
+                )
+            } catch {
+                interactionCredentialConfigured = false
+                await publish(
+                    .error,
+                    "Could not save interaction credential: \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
+    func deleteInteractionCredential() {
+        let interactionProvider = interactionProvider
+        let provider = interactionProvider.credentialProvider
+        interactionCredentialInput = ""
+        Task {
+            do {
+                try await credentialStore.delete(provider)
+                interactionCredentialConfigured = false
+                interactionCredentialSource = "Credential required"
+                interactionCredentialStoredInKeychain = false
+                await publish(
+                    .policy,
+                    "\(interactionProvider.displayName) credential removed from Keychain"
+                )
+            } catch {
+                await publish(
+                    .error,
+                    "Could not remove interaction credential: \(error.localizedDescription)"
+                )
+            }
         }
     }
 
@@ -386,19 +470,22 @@ final class AppModel {
                     throw InteractorError.invalidConfiguration
                 }
                 let interactionKey: String?
+                let interactionCredentialProvider =
+                    interactionProvider.credentialProvider
                 if let environmentKey = ProcessInfo.processInfo.environment[
-                    CodingProvider.responsesCompatible.environmentKey
+                    interactionCredentialProvider.environmentKey
                 ], !environmentKey.isEmpty {
                     interactionKey = environmentKey
                 } else {
                     interactionKey = try await credentialStore.credential(
-                        for: .responsesCompatible
+                        for: interactionCredentialProvider
                     )?.value
                 }
                 let interactor = ResponsesInteractor(configuration: .init(
                     endpoint: endpointURL,
                     model: modelID,
-                    apiKey: interactionKey
+                    apiKey: interactionKey,
+                    reasoningEffort: interactionProvider.reasoningEffort
                 ))
                 let coordinator = ConversationCoordinator(
                     interactor: interactor,

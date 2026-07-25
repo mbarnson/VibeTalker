@@ -8,17 +8,20 @@ nonisolated struct InteractorConfiguration: Sendable {
     let endpoint: URL
     let model: String
     let apiKey: String?
+    let reasoningEffort: String?
     let timeout: Duration
 
     init(
         endpoint: URL,
         model: String,
         apiKey: String? = nil,
+        reasoningEffort: String? = nil,
         timeout: Duration = .seconds(2)
     ) {
         self.endpoint = endpoint
         self.model = model
         self.apiKey = apiKey
+        self.reasoningEffort = reasoningEffort
         self.timeout = timeout
     }
 }
@@ -190,6 +193,9 @@ actor ResponsesInteractor: InteractionServing {
         ]
         if let previousResponseID {
             body["previous_response_id"] = previousResponseID
+        }
+        if let reasoningEffort = configuration.reasoningEffort {
+            body["reasoning"] = ["effort": reasoningEffort]
         }
         return body
     }
