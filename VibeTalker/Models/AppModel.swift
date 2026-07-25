@@ -34,15 +34,25 @@ final class AppModel {
     var runtimeArtifacts: [RuntimeArtifactDiagnostic] = []
     var piArtifacts: [RuntimeArtifactDiagnostic] = []
     var piRPCReady = false
-    var codingProvider: CodingProvider = .anthropic
+    var codingProvider: CodingProvider {
+        didSet { preferences.codingProvider = codingProvider }
+    }
     var codingCredentialInput = ""
     var codingCredentialConfigured = false
     var codingCredentialSource = "Credential required"
     var codingCredentialStoredInKeychain = false
-    var codingBaseURL = "http://127.0.0.1:8000/v1"
-    var codingModelID = ""
-    var interactionEndpoint = "http://127.0.0.1:8000/v1/responses"
-    var interactionModelID = ""
+    var codingBaseURL: String {
+        didSet { preferences.codingBaseURL = codingBaseURL }
+    }
+    var codingModelID: String {
+        didSet { preferences.codingModelID = codingModelID }
+    }
+    var interactionEndpoint: String {
+        didSet { preferences.interactionEndpoint = interactionEndpoint }
+    }
+    var interactionModelID: String {
+        didSet { preferences.interactionModelID = interactionModelID }
+    }
     var referenceAdapterReady = false
     var isImportingVoiceRuntime = false
     var voiceImportStatus = "Select a source-built staging folder"
@@ -61,6 +71,7 @@ final class AppModel {
     private let nodeHelperURL: URL
     private let credentialStore: CodingCredentialStore
     private let voiceRuntimeImporter: VoiceRuntimeImporter
+    private let preferences: AppPreferences
     private var pendingPiOutcome: PiTerminalOutcome?
     private var conversationCoordinator: ConversationCoordinator?
     private var voiceSessionID: UUID?
@@ -70,6 +81,7 @@ final class AppModel {
         processCoordinator: ProcessCoordinator = ProcessCoordinator(),
         runtimeInstallation: RuntimeInstallation? = nil,
         credentialStore: CodingCredentialStore = CodingCredentialStore(),
+        preferences: AppPreferences = AppPreferences(),
         voiceRuntimeImporter: VoiceRuntimeImporter = VoiceRuntimeImporter(),
         moshiReferenceClient: any MoshiReferenceAccepting = MoshiReferenceHTTPClient(),
         nodeHelperURL: URL? = nil
@@ -109,6 +121,12 @@ final class AppModel {
         )
         self.moshiReferenceClient = moshiReferenceClient
         self.credentialStore = credentialStore
+        self.preferences = preferences
+        self.codingProvider = preferences.codingProvider
+        self.codingBaseURL = preferences.codingBaseURL
+        self.codingModelID = preferences.codingModelID
+        self.interactionEndpoint = preferences.interactionEndpoint
+        self.interactionModelID = preferences.interactionModelID
         self.voiceRuntimeImporter = voiceRuntimeImporter
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
             .appending(path: "Contents/Helpers/vibetalker-node")
@@ -452,7 +470,12 @@ final class AppModel {
         while ContinuousClock.now < deadline {
             var request = URLRequest(url: endpoint)
             request.timeoutInterval = 1
-            if (try? await URLSession.shared.data(for: request)) != nil {
+            if let (data, response) = try? await URLSession.shared.data(for: request),
+               VoiceRuntimeReadinessProbe.isReady(
+                   service: service,
+                   data: data,
+                   response: response
+               ) {
                 await publish(.diagnostic, "\(service.rawValue) readiness probe passed")
                 return
             }

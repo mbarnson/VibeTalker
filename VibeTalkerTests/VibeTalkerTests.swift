@@ -10,6 +10,67 @@ import Testing
 @testable import VibeTalker
 
 struct VibeTalkerTests {
+    @Test func appPreferencesPersistNonSecretRuntimeConfiguration() throws {
+        let suiteName = "VibeTalkerTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let preferences = AppPreferences(defaults: defaults)
+        #expect(preferences.codingProvider == .anthropic)
+        #expect(preferences.codingBaseURL == AppPreferences.defaultCodingBaseURL)
+        #expect(preferences.interactionEndpoint == AppPreferences.defaultInteractionEndpoint)
+
+        preferences.codingProvider = .responsesCompatible
+        preferences.codingBaseURL = "http://127.0.0.1:8000/v1"
+        preferences.codingModelID = "poolside--Laguna-S-2.1-NVFP4-mlx"
+        preferences.interactionEndpoint = "https://api.openai.com/v1/responses"
+        preferences.interactionModelID = "gpt-5-mini"
+
+        let restored = AppPreferences(defaults: defaults)
+        #expect(restored.codingProvider == .responsesCompatible)
+        #expect(restored.codingBaseURL == "http://127.0.0.1:8000/v1")
+        #expect(restored.codingModelID == "poolside--Laguna-S-2.1-NVFP4-mlx")
+        #expect(restored.interactionEndpoint == "https://api.openai.com/v1/responses")
+        #expect(restored.interactionModelID == "gpt-5-mini")
+    }
+
+    @Test func voiceReadinessRequiresSuccessfulMoshiClientPage() throws {
+        let URL = try #require(URL(string: "http://127.0.0.1:8999/"))
+        let loading = try #require(HTTPURLResponse(
+            url: URL,
+            statusCode: 503,
+            httpVersion: nil,
+            headerFields: nil
+        ))
+        let ready = try #require(HTTPURLResponse(
+            url: URL,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        ))
+
+        #expect(!VoiceRuntimeReadinessProbe.isReady(
+            service: .moshi,
+            data: Data("starting".utf8),
+            response: loading
+        ))
+        #expect(!VoiceRuntimeReadinessProbe.isReady(
+            service: .moshi,
+            data: Data("<html>loading</html>".utf8),
+            response: ready
+        ))
+        #expect(VoiceRuntimeReadinessProbe.isReady(
+            service: .moshi,
+            data: Data("<title>moshi.chat</title>".utf8),
+            response: ready
+        ))
+        #expect(VoiceRuntimeReadinessProbe.isReady(
+            service: .speechToText,
+            data: Data(),
+            response: ready
+        ))
+    }
+
     @Test func ledgerMaintainsOrderAndRedactsSecrets() async {
         let ledger = EventLedger()
         let first = await ledger.append(.system, "started")
