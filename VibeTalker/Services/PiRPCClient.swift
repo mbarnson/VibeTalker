@@ -83,6 +83,11 @@ actor PiRPCClient {
             if processEvent.message.hasPrefix("exited") {
                 running = false
                 finishPending(with: PiRPCClientError.processEnded)
+                let ended = PiRPCEventFallback(
+                    type: "process_ended",
+                    record: processEvent.message
+                )
+                await eventSink?(ended.event)
             }
             return
         }

@@ -22,6 +22,11 @@ final class AppModel {
     var runtimeArtifacts: [RuntimeArtifactDiagnostic] = []
     var piArtifacts: [RuntimeArtifactDiagnostic] = []
     var piRPCReady = false
+    var codingProvider: CodingProvider = .anthropic
+    var codingCredentialInput = ""
+    var codingCredentialConfigured = false
+    var codingCredentialSource = "Credential required"
+    var codingCredentialStoredInKeychain = false
 
     private let ledger = EventLedger()
     private let preflight: NativePreflight
@@ -29,11 +34,14 @@ final class AppModel {
     private let runtimeInstallation: RuntimeInstallation
     private let piClient: PiRPCClient
     private let nodeHelperURL: URL
+    private let credentialStore: CodingCredentialStore
+    private var pendingPiOutcome: PiTerminalOutcome?
 
     init(
         preflight: NativePreflight = NativePreflight(),
         processCoordinator: ProcessCoordinator = ProcessCoordinator(),
         runtimeInstallation: RuntimeInstallation? = nil,
+        credentialStore: CodingCredentialStore = CodingCredentialStore(),
         nodeHelperURL: URL? = nil
     ) {
         let resolvedInstallation = runtimeInstallation ?? RuntimeInstallation(
@@ -44,12 +52,87 @@ final class AppModel {
         self.processCoordinator = processCoordinator
         self.runtimeInstallation = resolvedInstallation
         self.piClient = PiRPCClient(processes: processCoordinator)
+        self.credentialStore = credentialStore
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
             .appending(path: "Contents/Helpers/vibetalker-node")
         self.runtimeArtifacts = resolvedInstallation.diagnostics()
         self.piArtifacts = resolvedInstallation.piDiagnostics(nodeURL: self.nodeHelperURL)
         Task {
             await publish(.system, "VibeTalker native host initialized")
+            refreshCodingCredentialStatus()
+        }
+    }
+
+    func refreshCodingCredentialStatus() {
+        let provider = codingProvider
+        Task {
+            do {
+                if ProcessInfo.processInfo.environment[provider.environmentKey]?.isEmpty == false {
+                    codingCredentialConfigured = true
+                    codingCredentialSource = "Development environment"
+                    codingCredentialStoredInKeychain = false
+                } else {
+                    codingCredentialConfigured = try await credentialStore.contains(provider)
+                    codingCredentialSource = codingCredentialConfigured
+                        ? "Keychain configured"
+                        : "Credential required"
+                    codingCredentialStoredInKeychain = codingCredentialConfigured
+                }
+            } catch {
+                codingCredentialConfigured = false
+                codingCredentialSource = "Credential unavailable"
+                codingCredentialStoredInKeychain = false
+                await publish(
+                    .error,
+                    "Could not inspect \(provider.displayName) credential: \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
+    func saveCodingCredential() {
+        let provider = codingProvider
+        let value = codingCredentialInput
+        codingCredentialInput = ""
+        Task {
+            do {
+                try await credentialStore.save(value, for: provider)
+                codingCredentialConfigured = true
+                codingCredentialSource = "Keychain configured"
+                codingCredentialStoredInKeychain = true
+                await publish(
+                    .policy,
+                    "\(provider.displayName) coding credential saved in Keychain"
+                )
+            } catch {
+                codingCredentialConfigured = false
+                await publish(
+                    .error,
+                    "Could not save coding credential: \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
+    func deleteCodingCredential() {
+        let provider = codingProvider
+        codingCredentialInput = ""
+        Task {
+            do {
+                try await credentialStore.delete(provider)
+                codingCredentialConfigured = false
+                codingCredentialSource = "Credential required"
+                codingCredentialStoredInKeychain = false
+                await publish(
+                    .policy,
+                    "\(provider.displayName) coding credential removed from Keychain"
+                )
+            } catch {
+                await publish(
+                    .error,
+                    "Could not remove coding credential: \(error.localizedDescription)"
+                )
+            }
         }
     }
 
@@ -75,19 +158,23 @@ final class AppModel {
             return
         }
         let eventSink: PiRPCClient.EventSink = { [weak self] event in
-            if case .string(let record)? = event.raw["record"] {
-                await self?.publish(
-                    event.type == "process_stderr" ? .error : .helper,
-                    "pi \(event.type): \(record)"
-                )
-            } else {
-                await self?.publish(.helper, "pi event: \(event.type)")
-            }
+            await self?.receivePiEvent(event)
         }
         Task { [weak self] in
             guard let self else { return }
             do {
-                let spec = try runtimeInstallation.piLaunchSpec(nodeURL: nodeHelperURL)
+                let credential: CodingProviderCredential?
+                if let value = ProcessInfo.processInfo.environment[
+                    codingProvider.environmentKey
+                ], !value.isEmpty {
+                    credential = .init(provider: codingProvider, value: value)
+                } else {
+                    credential = try await credentialStore.credential(for: codingProvider)
+                }
+                let spec = try runtimeInstallation.piLaunchSpec(
+                    nodeURL: nodeHelperURL,
+                    credential: credential
+                )
                 try await piClient.start(spec: spec, events: eventSink)
                 let requestID = UUID().uuidString
                 let response = try await piClient.request(.getState(id: requestID))
@@ -109,6 +196,8 @@ final class AppModel {
         Task {
             await piClient.stop()
             piRPCReady = false
+            isJobRunning = false
+            pendingPiOutcome = nil
             runtimeStates = await processCoordinator.snapshot()
             await publish(.system, "Pi runtime stopped")
         }
@@ -187,7 +276,6 @@ final class AppModel {
                             .abort(id: UUID().uuidString)
                         )
                         if response.success == true {
-                            isJobRunning = false
                             await publish(.policy, "Typed abort accepted by pi RPC")
                         } else {
                             await publish(.error, "Pi abort failed: \(response.error ?? "unknown")")
@@ -220,7 +308,11 @@ final class AppModel {
                 )
                 if response.success == true {
                     isJobRunning = true
-                    await publish(.policy, "Typed request accepted by pi RPC")
+                    pendingPiOutcome = nil
+                    await publish(
+                        .policy,
+                        "Work started in \(runtimeInstallation.sandboxWorkspaceURL.lastPathComponent)"
+                    )
                 } else {
                     await publish(.error, "Pi declined request: \(response.error ?? "unknown")")
                 }
@@ -239,5 +331,45 @@ final class AppModel {
         let kind: LedgerEventKind = event.stream == .standardError ? .error : .helper
         await publish(kind, "\(event.service.rawValue): \(event.message)")
         runtimeStates = await processCoordinator.snapshot()
+    }
+
+    private func receivePiEvent(_ event: PiRPCEvent) async {
+        if case .string(let record)? = event.raw["record"] {
+            if event.type == "process_ended" {
+                piRPCReady = false
+                isJobRunning = false
+                pendingPiOutcome = nil
+                runtimeStates = await processCoordinator.snapshot()
+            }
+            await publish(
+                event.type == "process_stderr" ? .error : .helper,
+                "pi \(event.type): \(record)"
+            )
+            return
+        }
+
+        if let outcome = PiJobEventInterpreter.terminalOutcome(from: event) {
+            pendingPiOutcome = outcome
+        }
+        guard let projection = PiJobEventInterpreter.project(
+            event,
+            pendingOutcome: pendingPiOutcome
+        ) else {
+            if event.type != "message_update" {
+                await publish(.helper, "pi event: \(event.type)")
+            }
+            return
+        }
+
+        switch projection.lifecycle {
+        case .unchanged:
+            break
+        case .started:
+            isJobRunning = true
+        case .ended:
+            isJobRunning = false
+            pendingPiOutcome = nil
+        }
+        await publish(projection.kind, projection.message)
     }
 }

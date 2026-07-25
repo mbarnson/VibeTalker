@@ -1,7 +1,7 @@
 # Gate 5: pinned pi source baseline
 
-Status: **source build, signed-app embedding, and native RPC handshake passed;
-sandboxed coding loop pending**
+Status: **source build, signed-app embedding, security fixtures, native RPC,
+and typed sandbox edit passed; voice/status continuity pending**
 
 ## Source identity
 
@@ -49,8 +49,8 @@ an idle session, zero messages, and no configured model. This proves the pinned
 source build and stdin/stdout protocol boundary without sending a provider
 request or loading host configuration.
 
-Gate 5 remains open until the native app dispatches a harmless app-container
-edit through a configured model and passes the write/network escape fixtures.
+Gate 5 remains open until the spoken path, grounded status exchange, window
+reopen continuity, abort path, and proactive spoken completion pass together.
 
 ## Tool-policy load checkpoint
 
@@ -84,12 +84,81 @@ Gate 0 separately proves the outer App Sandbox and inherited child boundary
 from within the signed app. A Swift launch-contract test additionally fixes
 the pi environment to exactly `HOME`, `NODE_NO_WARNINGS`, `OPENSSL_CONF`,
 `PATH`, `PI_CODING_AGENT_DIR`, and `TMPDIR`; ambient provider and host
-credentials are not copied into the child.
+credentials are not copied into the child. When coding authentication is
+configured, exactly the selected provider's API-key variable is added.
 
 These deterministic tool-boundary proofs pass without trusting a model to
-choose a particular exploit. The remaining Gate 5 work is the configured-model
-coding loop: natural request, harmless app-container edit, grounded status,
-window reopen continuity, abort/completion behavior, and spoken completion.
+choose a particular exploit.
+
+## Job-lifecycle checkpoint
+
+The native RPC client now normalizes pi's authoritative `agent_start`,
+`tool_execution_start`, `tool_execution_end`, `turn_end`, `agent_end`, retry,
+abort, stderr, and process-exit records into the Event Ledger. Tool activity
+names the tool and bounded path evidence supplied by pi. Final state comes from
+the assistant stop reason and `agent_end`, rather than prompt acceptance, so
+the composer leaves active-job mode on completion, cancellation, failure, or
+helper exit.
+
+Synthetic protocol fixtures cover successful completion text, abort, provider
+failure, and tool-path projection. The Xcode test bundle compiles those
+fixtures. The Xcode 27 beta test-plan launcher on this machine still stalls
+before emitting test results, so compilation is recorded separately from test
+execution.
+
+Computer Use then submitted a real harmless typed request through the signed
+app with no provider credential configured. Pi returned its authoritative
+`No API key found for the selected model` error; the ledger displayed the
+failure, emitted no project-naming acceptance, and left the composer idle.
+This proves the degraded prompt path.
+
+With Anthropic selected through the development credential boundary, Computer
+Use next submitted:
+
+```text
+Create a file named gate5-marker.txt containing exactly VibeTalker Gate 5
+passed, then read it back to verify. Do not change any other file.
+```
+
+The ledger named `Workspace` in its committed acknowledgement, recorded pi's
+`write` and `read` tool events for `gate5-marker.txt`, returned the composer to
+idle, and published pi's grounded completion:
+
+```text
+Verified. The file `gate5-marker.txt` contains exactly
+`VibeTalker Gate 5 passed`.
+```
+
+The resulting app-container file is 24 bytes. The direct read tool result and
+assistant completion agree on its exact content.
+
+## Coding credential boundary
+
+No provider key is tracked, embedded in the app, or written to pi's
+`auth.json`. The product UI stores a user-entered key as a generic password
+created by VibeTalker itself in the Data Protection Keychain. The item is
+restricted to the signed app's private
+`$(AppIdentifierPrefix)org.barnson.VibeTalker` access group and uses
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. No helper reads the Keychain;
+the main app supplies only the selected credential to the pi child. Existence
+checks request attributes without decrypting the secret, and all Security
+framework calls run on a dedicated actor rather than the main UI actor.
+
+After the Apple developer agreement was accepted, Xcode refreshed the managed
+Mac provisioning profile and signed the app with application identifier
+`95S7RCGWWH.org.barnson.VibeTalker` and the matching private Keychain access
+group. A synthetic non-secret item was saved, the app process was fully
+terminated, and a normal relaunch recognized the item without an authorization
+dialog. The fixture was then removed through the product UI. An earlier
+experiment that pre-created a legacy login-Keychain item with the `security`
+CLI was discarded because its creator ACL caused repeated password prompts.
+
+For source-tree development only, `scripts/run-vibetalker-dev.sh` reads exactly
+one selected provider key from the ignored `.env`, exports it to the app
+without placing the value in argv, clears the other supported provider
+variables, and launches the already-built product. The UI labels this source
+`Development environment`. This path creates no Keychain item and therefore
+causes no authorization prompts during iterative debug builds.
 
 ## Signed native-app checkpoint
 

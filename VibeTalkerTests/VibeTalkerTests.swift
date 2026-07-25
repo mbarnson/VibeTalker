@@ -133,6 +133,17 @@ struct VibeTalkerTests {
         #expect(spec.environment["HOME"] == managedRoot.path)
         #expect(spec.environment["PI_CODING_AGENT_DIR"] == managedRoot
             .appending(path: "PiConfig").path)
+
+        let authenticatedSpec = try installation.piLaunchSpec(
+            nodeURL: URL(fileURLWithPath: "/bin/sh"),
+            credential: CodingProviderCredential(
+                provider: .anthropic,
+                value: "fixture-only"
+            )
+        )
+        #expect(authenticatedSpec.environment["ANTHROPIC_API_KEY"] == "fixture-only")
+        #expect(authenticatedSpec.environment["OPENAI_API_KEY"] == nil)
+        #expect(authenticatedSpec.environment["OPENROUTER_API_KEY"] == nil)
     }
 
     @Test func interactionValidatorRejectsStaleAndPartialOutput() throws {
@@ -219,6 +230,55 @@ struct VibeTalkerTests {
             #"{"id":"round-trip","type":"get_state"}"#
         ))
     }
+
+    @Test func piJobEventsProduceGroundedToolAndCompletionUpdates() throws {
+        let toolStart = try decodePiEvent(
+            #"{"type":"tool_execution_start","toolCallId":"tool-1","toolName":"write","args":{"path":"Sources/App.swift"}}"#
+        )
+        let toolProjection = PiJobEventInterpreter.project(
+            toolStart,
+            pendingOutcome: nil
+        )
+        #expect(toolProjection?.kind == .helper)
+        #expect(toolProjection?.message == "Pi started write: Sources/App.swift")
+
+        let turnEnd = try decodePiEvent(
+            #"{"type":"turn_end","message":{"role":"assistant","content":[{"type":"text","text":"Updated App.swift and ran the focused test."}],"stopReason":"stop"},"toolResults":[]}"#
+        )
+        let outcome = PiJobEventInterpreter.terminalOutcome(from: turnEnd)
+        #expect(outcome == .completed(
+            summary: "Updated App.swift and ran the focused test."
+        ))
+
+        let agentEnd = try decodePiEvent(
+            #"{"type":"agent_end","messages":[],"willRetry":false}"#
+        )
+        let completion = PiJobEventInterpreter.project(
+            agentEnd,
+            pendingOutcome: outcome
+        )
+        #expect(completion?.kind == .completion)
+        #expect(completion?.message ==
+            "Pi completed: Updated App.swift and ran the focused test.")
+        #expect(completion?.lifecycle == .ended(outcome!))
+    }
+
+    @Test func piJobEventsDistinguishAbortAndFailure() throws {
+        let abortEvent = try decodePiEvent(
+            #"{"type":"turn_end","message":{"role":"assistant","content":[],"stopReason":"aborted"},"toolResults":[]}"#
+        )
+        #expect(PiJobEventInterpreter.terminalOutcome(from: abortEvent) == .aborted)
+
+        let failureEvent = try decodePiEvent(
+            #"{"type":"turn_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"provider unavailable"},"toolResults":[]}"#
+        )
+        #expect(PiJobEventInterpreter.terminalOutcome(from: failureEvent) ==
+            .failed("provider unavailable"))
+    }
+}
+
+private func decodePiEvent(_ json: String) throws -> PiRPCEvent {
+    try JSONDecoder().decode(PiRPCEvent.self, from: Data(json.utf8))
 }
 
 private actor RuntimeEventCollector {

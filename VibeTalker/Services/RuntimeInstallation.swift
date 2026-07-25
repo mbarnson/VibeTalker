@@ -156,7 +156,10 @@ nonisolated struct RuntimeInstallation: Sendable {
         ]
     }
 
-    func piLaunchSpec(nodeURL: URL) throws -> RuntimeProcessSpec {
+    func piLaunchSpec(
+        nodeURL: URL,
+        credential: CodingProviderCredential? = nil
+    ) throws -> RuntimeProcessSpec {
         let failures = piDiagnostics(nodeURL: nodeURL).filter { !$0.available }
         guard failures.isEmpty else {
             throw RuntimeInstallationError.missingArtifacts(failures.map(\.label))
@@ -165,6 +168,18 @@ nonisolated struct RuntimeInstallation: Sendable {
             at: sandboxWorkspaceURL,
             withIntermediateDirectories: true
         )
+
+        var environment = [
+            "HOME": rootURL.path,
+            "NODE_NO_WARNINGS": "1",
+            "OPENSSL_CONF": "/dev/null",
+            "PATH": "/usr/bin:/bin",
+            "PI_CODING_AGENT_DIR": rootURL.appending(path: "PiConfig").path,
+            "TMPDIR": FileManager.default.temporaryDirectory.path
+        ]
+        if let credential {
+            environment[credential.provider.environmentKey] = credential.value
+        }
 
         return RuntimeProcessSpec(
             service: .pi,
@@ -181,14 +196,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                 "--no-approve"
             ],
             workingDirectoryURL: sandboxWorkspaceURL,
-            environment: [
-                "HOME": rootURL.path,
-                "NODE_NO_WARNINGS": "1",
-                "OPENSSL_CONF": "/dev/null",
-                "PATH": "/usr/bin:/bin",
-                "PI_CODING_AGENT_DIR": rootURL.appending(path: "PiConfig").path,
-                "TMPDIR": FileManager.default.temporaryDirectory.path
-            ]
+            environment: environment
         )
     }
 

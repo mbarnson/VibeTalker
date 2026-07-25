@@ -108,6 +108,50 @@ struct ContentView: View {
                                 model.piArtifacts.contains(where: { !$0.available })
                             )
                     }
+                    Divider()
+                    HStack {
+                        Picker(
+                            "Coding provider",
+                            selection: Bindable(model).codingProvider
+                        ) {
+                            ForEach(CodingProvider.allCases) { provider in
+                                Text(provider.displayName).tag(provider)
+                            }
+                        }
+                        .labelsHidden()
+                        .onChange(of: model.codingProvider) {
+                            model.codingCredentialInput = ""
+                            model.refreshCodingCredentialStatus()
+                        }
+                        Spacer()
+                        Label(
+                            model.codingCredentialSource,
+                            systemImage: model.codingCredentialConfigured
+                                ? "key.fill"
+                                : "key"
+                        )
+                        .foregroundStyle(
+                            model.codingCredentialConfigured ? .green : .secondary
+                        )
+                    }
+                    HStack {
+                        SecureField(
+                            "\(model.codingProvider.displayName) API key",
+                            text: Bindable(model).codingCredentialInput
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("coding-api-key")
+                        Button("Save") {
+                            model.saveCodingCredential()
+                        }
+                        .disabled(model.codingCredentialInput
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                            .isEmpty)
+                        Button("Remove") {
+                            model.deleteCodingCredential()
+                        }
+                        .disabled(!model.codingCredentialStoredInKeychain)
+                    }
                 }
                 .padding(.vertical, 4)
             }
