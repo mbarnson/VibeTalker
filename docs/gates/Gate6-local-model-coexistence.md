@@ -32,6 +32,19 @@ The smaller model reduced Interaction latency but did not remove the realtime
 audio regression. This rules out memory exhaustion as the explanation and
 identifies shared MLX/Metal execution as the limiting dimension.
 
+An optimized follow-up replaced the 13 GB BF16 Moshi MLX weights with a 7.6 GB
+q8 artifact generated from the pinned GitHub source checkout. With the q8
+Moshi server loaded and its browser WebSocket connected, a balanced 15-turn
+sample through the local Qwen 4B Responses endpoint produced 15/15 valid
+results, 1.013 s median, 1.099 s P95, and no turns over 3 seconds. The Moshi
+page reported zero missed audio during that run.
+
+This is encouraging but does not reverse the gate: the automated session did
+not produce Moshi output audio, so it did not reproduce the sustained
+full-duplex inference load that exposed the BF16 underruns. The q8 result is a
+qualified coexistence improvement, not evidence for the PRD's ten-minute
+full-duplex acceptance condition.
+
 The attempted CPU-only oMLX path failed with
 `KeyError: max_recommended_working_set_size`; that server path is not a
 supported CPU escape hatch.

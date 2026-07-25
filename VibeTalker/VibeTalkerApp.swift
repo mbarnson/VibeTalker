@@ -15,6 +15,13 @@ struct VibeTalkerApp: App {
         WindowGroup {
             ContentView()
                 .environment(appModel)
+                .onReceive(
+                    NotificationCenter.default.publisher(
+                        for: NSApplication.willTerminateNotification
+                    )
+                ) { _ in
+                    appModel.applicationWillTerminate()
+                }
         }
         .defaultSize(width: 1_280, height: 780)
         .commands {

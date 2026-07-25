@@ -79,7 +79,7 @@ nonisolated struct RuntimeInstallation: Sendable {
     }
 
     var moshiWeightURL: URL {
-        modelDirectoryURL.appending(path: "moshika-rag-mlx-bf16.safetensors")
+        modelDirectoryURL.appending(path: "moshika-rag-mlx-q8.safetensors")
     }
 
     var conditionerWeightURL: URL {
@@ -247,6 +247,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                 executableURL: mlxPythonURL,
                 arguments: [
                     "-m", "moshi_mlx.local_web",
+                    "--quantized", "8",
                     "--moshi-weight", moshiWeightURL.path,
                     "--tokenizer", tokenizerURL.path,
                     "--mimi-weight", mimiWeightURL.path,

@@ -20,6 +20,8 @@ model_root="$runtime_root/Models"
 python_root="$runtime_root/Python"
 shared_python="$python_root/bin/python3.12"
 stt_binary="$runtime_root/Bin/vibetalker-stt"
+moshi_bf16_weight="$model_root/moshika-rag-mlx-bf16.safetensors"
+moshi_q8_weight="$model_root/moshika-rag-mlx-q8.safetensors"
 
 if [[ "$runtime_root" != /* ]] || [[ "$runtime_root" == "/" ]]; then
     echo "error: Runtime root must be an absolute, non-root path."
@@ -188,17 +190,26 @@ HF_HOME="$runtime_root/HuggingFace" \
     "$repo_root/Dependencies/moshi-rag-pytorch-config.json"
 
 mkdir -p "$model_root"
-if [[ ! -f "$model_root/moshika-rag-mlx-bf16.safetensors" ]]; then
+if [[ ! -f "$moshi_bf16_weight" ]]; then
     PYTHONPATH="$rag_checkout/site-packages" \
         "$shared_python" \
         "$rag_checkout/scripts/import_mlx.py" \
         "$model_root/moshika-rag-pytorch-bf16.safetensors" \
-        "$model_root/moshika-rag-mlx-bf16.safetensors" \
+        "$moshi_bf16_weight" \
         --silent
 fi
 
 /bin/cp "$repo_root/Dependencies/moshi-rag-mlx-config.json" \
     "$runtime_root/moshi-rag-mlx-config.json"
+if [[ ! -f "$moshi_q8_weight" ]]; then
+    PYTHONPATH="$mlx_checkout/site-packages" \
+        "$shared_python" \
+        "$repo_root/scripts/quantize-moshi-mlx.py" \
+        "$runtime_root/moshi-rag-mlx-config.json" \
+        "$moshi_bf16_weight" \
+        "$moshi_q8_weight" \
+        --bits 8
+fi
 
 HF_HOME="$runtime_root/HuggingFace" \
     TRANSFORMERS_OFFLINE=1 \
@@ -221,7 +232,8 @@ marker="$runtime_root/.vibetalker-voice-runtime"
         "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
         "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
         "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
-        "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch"
+        "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch" \
+        "$repo_root/scripts/quantize-moshi-mlx.py"
 } > "$marker"
 
 echo "Built the VibeTalker voice runtime from pinned GitHub sources in $runtime_root"

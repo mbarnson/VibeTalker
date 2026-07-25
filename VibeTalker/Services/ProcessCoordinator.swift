@@ -91,12 +91,45 @@ private nonisolated final class ManagedProcess: @unchecked Sendable {
     }
 }
 
+private nonisolated final class ProcessTerminationRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var processes: [ObjectIdentifier: Process] = [:]
+
+    func register(_ process: Process) {
+        lock.withLock {
+            processes[ObjectIdentifier(process)] = process
+        }
+    }
+
+    func unregister(_ process: Process) {
+        _ = lock.withLock {
+            processes.removeValue(forKey: ObjectIdentifier(process))
+        }
+    }
+
+    func terminateAll() {
+        let active = lock.withLock {
+            let active = Array(processes.values)
+            processes.removeAll()
+            return active
+        }
+        for process in active where process.isRunning {
+            process.terminate()
+        }
+    }
+}
+
 actor ProcessCoordinator {
     typealias EventSink = @Sendable (RuntimeProcessEvent) async -> Void
 
     private var managed: [RuntimeService: ManagedProcess] = [:]
     private var states: [RuntimeService: RuntimeProcessState] = [:]
     private var requestedStops: Set<RuntimeService> = []
+    private nonisolated let terminationRegistry = ProcessTerminationRegistry()
+
+    nonisolated func terminateAllImmediately() {
+        terminationRegistry.terminateAll()
+    }
 
     func state(for service: RuntimeService) -> RuntimeProcessState {
         states[service] ?? .stopped
@@ -165,6 +198,7 @@ actor ProcessCoordinator {
             states[service] = .failed(error.localizedDescription)
             throw ProcessCoordinatorError.launchFailed(service, error.localizedDescription)
         }
+        terminationRegistry.register(process)
 
         managed[service] = ManagedProcess(
             process: process,
@@ -211,6 +245,7 @@ actor ProcessCoordinator {
         events: @escaping EventSink
     ) async {
         guard let item = managed.removeValue(forKey: service) else { return }
+        terminationRegistry.unregister(item.process)
         item.standardOutput.fileHandleForReading.readabilityHandler = nil
         item.standardError.fileHandleForReading.readabilityHandler = nil
         let wasRequested = requestedStops.remove(service) != nil

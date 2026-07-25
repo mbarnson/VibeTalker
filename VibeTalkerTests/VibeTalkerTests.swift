@@ -202,6 +202,31 @@ struct VibeTalkerTests {
         #expect(await coordinator.state(for: .referenceEncoder) == .stopped)
     }
 
+    @Test func processCoordinatorImmediatelyTerminatesChildrenForAppShutdown() async throws {
+        let coordinator = ProcessCoordinator()
+        let spec = RuntimeProcessSpec(
+            service: .moshi,
+            executableURL: URL(fileURLWithPath: "/bin/sleep"),
+            arguments: ["30"],
+            workingDirectoryURL: URL(fileURLWithPath: "/tmp"),
+            environment: ["PATH": "/usr/bin:/bin"]
+        )
+        try await coordinator.start(spec) { _ in }
+
+        coordinator.terminateAllImmediately()
+        for _ in 0..<20 {
+            if case .running = await coordinator.state(for: .moshi) {
+                try await Task.sleep(for: .milliseconds(50))
+            } else {
+                break
+            }
+        }
+
+        if case .running = await coordinator.state(for: .moshi) {
+            Issue.record("Expected immediate app-shutdown cleanup to terminate the child")
+        }
+    }
+
     @Test func runtimeInstallationBuildsPinnedLocalTopology() throws {
         let root = URL(fileURLWithPath: "/tmp/VibeTalker-Runtime-Fixture")
         let installation = RuntimeInstallation(rootURL: root)
@@ -209,7 +234,7 @@ struct VibeTalkerTests {
         #expect(installation.pythonURL.path.hasSuffix("Python/bin/python3.12"))
         #expect(installation.mlxPythonURL == installation.ragPythonURL)
         #expect(installation.moshiWeightURL.path.hasSuffix(
-            "Models/moshika-rag-mlx-bf16.safetensors"
+            "Models/moshika-rag-mlx-q8.safetensors"
         ))
         #expect(throws: RuntimeInstallationError.self) {
             _ = try installation.voiceLaunchSpecs()
@@ -275,6 +300,8 @@ struct VibeTalkerTests {
         #expect(moshi.environment["LLM_BASE_URL"] == adapterURL.absoluteString)
         #expect(moshi.environment["LLM_MODEL_NAME"] == "vibetalker-coordinator")
         #expect(moshi.environment["LLM_API_KEY"] == "loopback-only")
+        let quantizedIndex = try #require(moshi.arguments.firstIndex(of: "--quantized"))
+        #expect(moshi.arguments[quantizedIndex + 1] == "8")
         #expect(moshi.environment["REFERENCE_ENCODER_URL"] == "http://127.0.0.1:8001")
         #expect(!moshi.environment.keys.contains("OMLX_API_KEY"))
         #expect(moshi.environment["PYTHONHOME"] == root.appending(path: "Python").path)

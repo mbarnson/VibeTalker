@@ -582,6 +582,11 @@ final class AppModel {
         }
     }
 
+    func applicationWillTerminate() {
+        processCoordinator.terminateAllImmediately()
+        referenceServer.stop()
+    }
+
     private func endVoiceSession() async {
         if let voiceSessionID, let conversationCoordinator {
             await conversationCoordinator.endVoiceSession(voiceSessionID)
