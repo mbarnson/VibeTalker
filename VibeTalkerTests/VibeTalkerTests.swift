@@ -5,6 +5,7 @@
 //  Created by Matthew Barnson on 7/24/26.
 //
 
+import Foundation
 import Testing
 @testable import VibeTalker
 
@@ -28,5 +29,64 @@ struct VibeTalkerTests {
 
         #expect(!value.contains("abcdefghijklmnop"))
         #expect(!value.contains("ghp_"))
+    }
+
+    @Test func runtimeProcessSpecRejectsMissingExecutable() {
+        let spec = RuntimeProcessSpec(
+            service: .moshi,
+            executableURL: URL(fileURLWithPath: "/definitely/missing/vibetalker-runtime"),
+            arguments: [],
+            workingDirectoryURL: URL(fileURLWithPath: "/tmp"),
+            environment: [:]
+        )
+
+        #expect(throws: ProcessCoordinatorError.self) {
+            try spec.validate()
+        }
+    }
+
+    @Test func processCoordinatorStartsCapturesOutputAndStops() async throws {
+        let coordinator = ProcessCoordinator()
+        let collector = RuntimeEventCollector()
+        let spec = RuntimeProcessSpec(
+            service: .referenceEncoder,
+            executableURL: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "echo conditioner-ready; sleep 30"],
+            workingDirectoryURL: URL(fileURLWithPath: "/tmp"),
+            environment: ["PATH": "/usr/bin:/bin"]
+        )
+
+        try await coordinator.start(spec) { event in
+            await collector.append(event)
+        }
+        let state = await coordinator.state(for: .referenceEncoder)
+        guard case .running = state else {
+            Issue.record("Expected a running reference encoder, got \(state)")
+            return
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(await collector.messages().contains("conditioner-ready"))
+
+        await coordinator.stop(.referenceEncoder)
+        for _ in 0..<20 {
+            if await coordinator.state(for: .referenceEncoder) == .stopped {
+                break
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(await coordinator.state(for: .referenceEncoder) == .stopped)
+    }
+}
+
+private actor RuntimeEventCollector {
+    private var events: [RuntimeProcessEvent] = []
+
+    func append(_ event: RuntimeProcessEvent) {
+        events.append(event)
+    }
+
+    func messages() -> [String] {
+        events.map(\.message)
     }
 }
