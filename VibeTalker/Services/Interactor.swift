@@ -22,7 +22,7 @@ nonisolated struct InteractorConfiguration: Sendable {
         model: String,
         apiKey: String? = nil,
         reasoningEffort: String? = nil,
-        timeout: Duration = .seconds(2),
+        timeout: Duration = .milliseconds(2_500),
         transport: ResponsesTransport = .serverSentEvents
     ) {
         self.endpoint = endpoint
@@ -105,6 +105,7 @@ nonisolated enum InteractorError: LocalizedError {
     case invalidHTTPResponse
     case providerFailure(Int, String)
     case providerStreamFailure(String)
+    case timedOut
     case streamEndedBeforeCompletion
     case missingStructuredOutput
     case malformedStructuredOutput(String)
@@ -119,6 +120,8 @@ nonisolated enum InteractorError: LocalizedError {
             "Interactor failed with HTTP \(status): \(message)"
         case .providerStreamFailure(let message):
             "Interactor stream failed: \(message)"
+        case .timedOut:
+            "Interactor exceeded its response deadline."
         case .streamEndedBeforeCompletion:
             "Interactor stream ended before response.completed."
         case .missingStructuredOutput:
@@ -170,14 +173,19 @@ actor ResponsesInteractor: InteractionServing {
                 }
                 group.addTask {
                     try await Task.sleep(for: self.configuration.timeout)
-                    await self.cancelActiveWebSocket()
-                    throw CancellationError()
+                    throw InteractorError.timedOut
                 }
-                guard let first = try await group.next() else {
-                    throw CancellationError()
+                do {
+                    guard let first = try await group.next() else {
+                        throw CancellationError()
+                    }
+                    group.cancelAll()
+                    return first
+                } catch {
+                    group.cancelAll()
+                    self.cancelActiveWebSocket()
+                    throw error
                 }
-                group.cancelAll()
-                return first
             }
         } onCancel: {
             Task {
@@ -233,6 +241,16 @@ actor ResponsesInteractor: InteractionServing {
                     previousResponseID: previousResponseID
                 )
             } catch ResponsesWebSocketError.restartChain {
+                cancelActiveWebSocket()
+                self.previousResponseID = nil
+                return try await performWebSocketRequest(
+                    utterance: utterance,
+                    previousResponseID: nil
+                )
+            } catch InteractorError.providerStreamFailure {
+                guard !Task.isCancelled else {
+                    throw CancellationError()
+                }
                 cancelActiveWebSocket()
                 self.previousResponseID = nil
                 return try await performWebSocketRequest(

@@ -8,6 +8,13 @@ enum ResponsesWebSocketSmoke {
             ?? "https://api.openai.com/v1/responses"
         let model = environment["VIBETALKER_INTERACTION_MODEL"]
             ?? "gpt-5.6-luna"
+        let timeoutMilliseconds = Int(
+            environment["VIBETALKER_INTERACTION_TIMEOUT_MS"] ?? ""
+        ) ?? 15_000
+        let firstTranscript = environment["VIBETALKER_SMOKE_FIRST_TRANSCRIPT"]
+            ?? "What is one benefit of a persistent WebSocket?"
+        let secondTranscript = environment["VIBETALKER_SMOKE_SECOND_TRANSCRIPT"]
+            ?? "Summarize that answer in five words."
         guard let endpoint = URL(string: endpointValue),
               let apiKey = environment["OPENAI_API_KEY"],
               !apiKey.isEmpty else {
@@ -19,7 +26,7 @@ enum ResponsesWebSocketSmoke {
             model: model,
             apiKey: apiKey,
             reasoningEffort: "none",
-            timeout: .seconds(15),
+            timeout: .milliseconds(timeoutMilliseconds),
             transport: .webSocket
         ))
         let sessionID = UUID()
@@ -28,7 +35,7 @@ enum ResponsesWebSocketSmoke {
                 voiceSessionID: sessionID,
                 utteranceID: UUID(),
                 revision: 1,
-                transcript: "What is one benefit of a persistent WebSocket?"
+                transcript: firstTranscript
             ))
         }
         let second = try await measure {
@@ -36,7 +43,7 @@ enum ResponsesWebSocketSmoke {
                 voiceSessionID: sessionID,
                 utteranceID: UUID(),
                 revision: 1,
-                transcript: "Summarize that answer in five words."
+                transcript: secondTranscript
             ))
         }
 

@@ -796,6 +796,15 @@ struct VibeTalkerTests {
         ))
     }
 
+    @Test func interactorDefaultDeadlineMatchesCommittedAcknowledgementSLO() {
+        let configuration = InteractorConfiguration(
+            endpoint: URL(string: "https://example.test/v1/responses")!,
+            model: "fixture"
+        )
+
+        #expect(configuration.timeout == .milliseconds(2_500))
+    }
+
     @Test func responsesSSEDecoderSurfacesProviderFailure() throws {
         var decoder = ResponsesSSEDecoder()
         #expect(throws: InteractorError.self) {
