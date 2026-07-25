@@ -394,6 +394,118 @@ struct VibeTalkerTests {
         #expect(await references.deliveries().isEmpty)
     }
 
+    @Test func piJobControllerSerializesTypedAndVoiceAdmission() async throws {
+        let rpc = StubPiRPCRequester()
+        let jobs = PiJobController(rpc: rpc, projectName: "Workspace")
+        await jobs.runtimeBecameReady()
+
+        let receipt = try await jobs.dispatch(PiRequest(
+            operation: .start,
+            instruction: "Update the README."
+        ))
+        #expect(receipt == .started(projectName: "Workspace"))
+        #expect(await jobs.snapshot() == .running)
+
+        await #expect(throws: PiJobControllerError.self) {
+            try await jobs.dispatch(PiRequest(
+                operation: .start,
+                instruction: "Race a second job."
+            ))
+        }
+
+        let status = try await jobs.dispatch(PiRequest(
+            operation: .status,
+            instruction: nil
+        ))
+        #expect(status == .status(
+            projectName: "Workspace",
+            summary: "The coding job is running."
+        ))
+        #expect(await rpc.commandTypes() == ["prompt"])
+    }
+
+    @Test func piJobControllerGroundsTerminalEventState() async throws {
+        let rpc = StubPiRPCRequester()
+        let jobs = PiJobController(rpc: rpc, projectName: "Workspace")
+        await jobs.runtimeBecameReady()
+        _ = try await jobs.dispatch(PiRequest(
+            operation: .start,
+            instruction: "Run the focused test."
+        ))
+
+        await jobs.receive(try decodePiEvent(
+            #"{"type":"turn_end","message":{"role":"assistant","content":[{"type":"text","text":"Focused test passed."}],"stopReason":"stop"},"toolResults":[]}"#
+        ))
+        await jobs.receive(try decodePiEvent(
+            #"{"type":"agent_end","messages":[],"willRetry":false}"#
+        ))
+
+        #expect(await jobs.snapshot() == .completed("Focused test passed."))
+        let status = try await jobs.dispatch(PiRequest(
+            operation: .status,
+            instruction: nil
+        ))
+        #expect(status == .status(
+            projectName: "Workspace",
+            summary: "Completed. Focused test passed."
+        ))
+    }
+
+    @Test func piJobControllerKeepsCancellationWhileStartAcknowledgementIsDelayed() async throws {
+        let rpc = SuspendedPromptPiRPCRequester()
+        let jobs = PiJobController(rpc: rpc, projectName: "Workspace")
+        await jobs.runtimeBecameReady()
+
+        let start = Task {
+            try await jobs.dispatch(PiRequest(
+                operation: .start,
+                instruction: "Run a long coding job."
+            ))
+        }
+        await rpc.waitUntilPromptStarts()
+
+        let cancelReceipt = try await jobs.dispatch(PiRequest(
+            operation: .cancel,
+            instruction: nil
+        ))
+        #expect(cancelReceipt == .cancellationRequested(projectName: "Workspace"))
+        #expect(await jobs.snapshot() == .cancelling)
+
+        await rpc.resumePrompt()
+        _ = try await start.value
+        #expect(await jobs.snapshot() == .cancelling)
+
+        await jobs.receive(try decodePiEvent(
+            #"{"type":"agent_start"}"#
+        ))
+        #expect(await jobs.snapshot() == .cancelling)
+        #expect(await rpc.commandTypes() == ["prompt", "abort"])
+    }
+
+    @Test func piJobControllerAcceptsGroundedCompletionWithoutSummary() async throws {
+        let rpc = StubPiRPCRequester()
+        let jobs = PiJobController(rpc: rpc, projectName: "Workspace")
+        await jobs.runtimeBecameReady()
+        _ = try await jobs.dispatch(PiRequest(
+            operation: .start,
+            instruction: "Perform a silent task."
+        ))
+
+        await jobs.receive(try decodePiEvent(
+            #"{"type":"agent_end","messages":[],"willRetry":false}"#
+        ))
+
+        #expect(await jobs.snapshot() == .completed(nil))
+        let status = try await jobs.dispatch(PiRequest(
+            operation: .status,
+            instruction: nil
+        ))
+        #expect(status == .status(
+            projectName: "Workspace",
+            summary: "The coding job completed."
+        ))
+    }
+
     @Test func processCoordinatorWritesAndReassemblesJSONLines() async throws {
         let coordinator = ProcessCoordinator()
         let collector = RuntimeEventCollector()
@@ -542,5 +654,82 @@ private actor ReferenceCollector: ReferenceDelivering {
 
     func deliveries() -> [ReferenceDelivery] {
         received
+    }
+}
+
+private actor StubPiRPCRequester: PiRPCRequesting {
+    private var commands: [PiRPCCommand] = []
+
+    func request(_ command: PiRPCCommand) async throws -> PiRPCResponse {
+        commands.append(command)
+        return PiRPCResponse(
+            id: command.id,
+            type: "response",
+            command: commandType(command),
+            success: true,
+            data: nil,
+            error: nil
+        )
+    }
+
+    func commandTypes() -> [String] {
+        commands.map(commandType)
+    }
+
+    private func commandType(_ command: PiRPCCommand) -> String {
+        switch command {
+        case .getState: "get_state"
+        case .setModel: "set_model"
+        case .prompt: "prompt"
+        case .abort: "abort"
+        }
+    }
+}
+
+private actor SuspendedPromptPiRPCRequester: PiRPCRequesting {
+    private var commands: [PiRPCCommand] = []
+    private var promptStarted = false
+    private var promptContinuation: CheckedContinuation<Void, Never>?
+
+    func request(_ command: PiRPCCommand) async throws -> PiRPCResponse {
+        commands.append(command)
+        if case .prompt = command {
+            promptStarted = true
+            await withCheckedContinuation { continuation in
+                promptContinuation = continuation
+            }
+        }
+        return PiRPCResponse(
+            id: command.id,
+            type: "response",
+            command: commandType(command),
+            success: true,
+            data: nil,
+            error: nil
+        )
+    }
+
+    func waitUntilPromptStarts() async {
+        while !promptStarted {
+            await Task.yield()
+        }
+    }
+
+    func resumePrompt() {
+        promptContinuation?.resume()
+        promptContinuation = nil
+    }
+
+    func commandTypes() -> [String] {
+        commands.map(commandType)
+    }
+
+    private func commandType(_ command: PiRPCCommand) -> String {
+        switch command {
+        case .getState: "get_state"
+        case .setModel: "set_model"
+        case .prompt: "prompt"
+        case .abort: "abort"
+        }
     }
 }

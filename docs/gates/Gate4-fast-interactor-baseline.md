@@ -1,7 +1,7 @@
 # Gate 4: fast Interactor baseline
 
-Status: **Coordinator admission and grounded-acknowledgement boundary compiled;
-live Moshi injection and latency corpus pending**
+Status: **Coordinator admission, grounded acknowledgement, and serialized Pi
+job controller compiled; live Moshi injection and latency corpus pending**
 
 ## Current checkpoint
 
@@ -24,17 +24,30 @@ receipt, invalid project/status evidence, Interactor failure, dispatch failure,
 or Reference-delivery failure is explicit and cannot publish a false
 acknowledgement.
 
-Xcode `build-for-testing` compiles focused fixtures proving:
+Xcode `test-without-building -only-testing:VibeTalkerTests` executes focused
+fixtures proving:
 
 - a valid start request reaches Pi before the grounded project-naming
   Reference is delivered;
 - a stale transcript revision is rejected before a second Interactor call; and
 - a status request paired with a start receipt publishes no Reference.
 
+`PiJobController` is now the authoritative lifecycle state machine behind the
+typed Pi Console and is also the `PiRequestDispatching` capability intended for
+voice turns. It serializes start admission across actor suspension, grounds
+status in Pi lifecycle events, and preserves cancellation when a delayed prompt
+acknowledgement or `agent_start` event arrives. A terminal `agent_end` without
+assistant prose remains a grounded completion rather than receiving an invented
+summary.
+
+Additional executed fixtures cover second-start rejection, event-grounded
+completion, summary-free completion, and the cancellation-versus-delayed-start
+race.
+
 ## Remaining Gate 4 work
 
-- Adapt Pi RPC through one Coordinator-owned serialized job controller shared
-  by voice and the typed Pi Console.
+- Inject the existing shared `PiJobController` into the live
+  `ConversationCoordinator` voice path.
 - Expose the OpenAI-compatible chat-completions adapter Moshi-RAG expects.
 - Reconcile eager Interaction results with Moshi `<ret>` requests.
 - Run the frozen fidelity and latency corpora and publish measured native

@@ -35,6 +35,7 @@ final class AppModel {
     private let processCoordinator: ProcessCoordinator
     private let runtimeInstallation: RuntimeInstallation
     private let piClient: PiRPCClient
+    private let piJobs: PiJobController
     private let nodeHelperURL: URL
     private let credentialStore: CodingCredentialStore
     private var pendingPiOutcome: PiTerminalOutcome?
@@ -54,6 +55,10 @@ final class AppModel {
         self.processCoordinator = processCoordinator
         self.runtimeInstallation = resolvedInstallation
         self.piClient = PiRPCClient(processes: processCoordinator)
+        self.piJobs = PiJobController(
+            rpc: self.piClient,
+            projectName: resolvedInstallation.sandboxWorkspaceURL.lastPathComponent
+        )
         self.credentialStore = credentialStore
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
             .appending(path: "Contents/Helpers/vibetalker-node")
@@ -205,9 +210,11 @@ final class AppModel {
                     throw PiRPCClientError.requestFailed(response.error ?? "get_state failed")
                 }
                 piRPCReady = true
+                await piJobs.runtimeBecameReady()
                 runtimeStates = await processCoordinator.snapshot()
                 await publish(.completion, "Pinned source-built pi RPC session ready")
             } catch {
+                await piJobs.runtimeStopped()
                 piRPCReady = false
                 runtimeStates = await processCoordinator.snapshot()
                 await publish(.error, "Pi runtime start failed: \(error.localizedDescription)")
@@ -218,6 +225,7 @@ final class AppModel {
     func stopPiRuntime() {
         Task {
             await piClient.stop()
+            await piJobs.runtimeStopped()
             piRPCReady = false
             isJobRunning = false
             pendingPiOutcome = nil
@@ -295,13 +303,12 @@ final class AppModel {
             if value.lowercased() == "abort" {
                 Task {
                     do {
-                        let response = try await piClient.request(
-                            .abort(id: UUID().uuidString)
-                        )
-                        if response.success == true {
+                        let receipt = try await piJobs.dispatch(PiRequest(
+                            operation: .cancel,
+                            instruction: nil
+                        ))
+                        if case .cancellationRequested = receipt {
                             await publish(.policy, "Typed abort accepted by pi RPC")
-                        } else {
-                            await publish(.error, "Pi abort failed: \(response.error ?? "unknown")")
                         }
                     } catch {
                         await publish(.error, "Pi abort failed: \(error.localizedDescription)")
@@ -325,19 +332,14 @@ final class AppModel {
                 return
             }
             do {
-                let commandID = UUID().uuidString
-                let response = try await piClient.request(
-                    .prompt(id: commandID, message: value)
-                )
-                if response.success == true {
-                    isJobRunning = true
-                    pendingPiOutcome = nil
-                    await publish(
-                        .policy,
-                        "Work started in \(runtimeInstallation.sandboxWorkspaceURL.lastPathComponent)"
-                    )
-                } else {
-                    await publish(.error, "Pi declined request: \(response.error ?? "unknown")")
+                let receipt = try await piJobs.dispatch(PiRequest(
+                    operation: .start,
+                    instruction: value
+                ))
+                isJobRunning = (await piJobs.snapshot()).isRunning
+                pendingPiOutcome = nil
+                if case .started(let projectName) = receipt {
+                    await publish(.policy, "Work started in \(projectName)")
                 }
             } catch {
                 await publish(.error, "Pi request failed: \(error.localizedDescription)")
@@ -357,6 +359,8 @@ final class AppModel {
     }
 
     private func receivePiEvent(_ event: PiRPCEvent) async {
+        await piJobs.receive(event)
+        isJobRunning = (await piJobs.snapshot()).isRunning
         if case .string(let record)? = event.raw["record"] {
             if event.type == "process_ended" {
                 piRPCReady = false
