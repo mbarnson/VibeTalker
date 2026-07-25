@@ -13,6 +13,7 @@ runtime_root="${1:-$default_runtime_root}"
 python_command="${PYTHON_COMMAND:-python3.12}"
 uv_command="${UV_COMMAND:-uv}"
 cargo_command="${CARGO_COMMAND:-cargo}"
+npm_command="${NPM_COMMAND:-npm}"
 mlx_checkout="$runtime_root/moshi-mlx"
 rag_checkout="$runtime_root/moshi-rag"
 model_root="$runtime_root/Models"
@@ -30,6 +31,10 @@ if ! command -v "$python_command" >/dev/null; then
 fi
 if ! command -v "$cargo_command" >/dev/null; then
     echo "error: Rust cargo is required (override with CARGO_COMMAND)."
+    exit 1
+fi
+if ! command -v "$npm_command" >/dev/null; then
+    echo "error: npm is required (override with NPM_COMMAND)."
     exit 1
 fi
 python_version="$("$python_command" -c 'import platform; print(platform.python_version())')"
@@ -108,7 +113,8 @@ prepare_checkout \
     "$mlx_checkout" \
     "$repo_root/Patches/moshi-mlx-rag-apple-silicon.patch" \
     "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch" \
-    "$repo_root/Patches/moshi-mlx-streaming-stt.patch"
+    "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
+    "$repo_root/Patches/moshi-mlx-nonblocking-log.patch"
 prepare_checkout \
     "$rag_repository" \
     "$rag_revision" \
@@ -126,6 +132,16 @@ done
 install_target_packages "$mlx_checkout/site-packages" \
     -r "$repo_root/Dependencies/moshi-mlx-requirements.lock" \
     "$mlx_checkout/moshi_mlx"
+
+(
+    cd "$mlx_checkout/client"
+    "$npm_command" ci
+    "$npm_command" run build
+)
+if [[ ! -f "$mlx_checkout/client/dist/index.html" ]]; then
+    echo "error: The pinned Moshi browser client did not build."
+    exit 1
+fi
 
 install_target_packages "$rag_checkout/site-packages" \
     --no-deps \
@@ -202,6 +218,7 @@ marker="$runtime_root/.vibetalker-voice-runtime"
         "$repo_root/Patches/moshi-mlx-rag-apple-silicon.patch" \
         "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch" \
         "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
+        "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
         "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch"
 } > "$marker"
 

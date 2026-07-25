@@ -104,6 +104,7 @@ struct VibeTalkerTests {
             installation.sttExecutableURL
         ]
         let fileURLs = [
+            installation.moshiClientURL.appending(path: "index.html"),
             installation.mlxSitePackagesURL
                 .appending(path: "moshi_mlx/__init__.py"),
             installation.ragSitePackagesURL
@@ -175,7 +176,7 @@ struct VibeTalkerTests {
                 == adapterURL.appending(path: "transcripts").absoluteString
         )
         let staticIndex = try #require(moshi.arguments.firstIndex(of: "--static"))
-        #expect(moshi.arguments[staticIndex + 1] == "none")
+        #expect(moshi.arguments[staticIndex + 1] == installation.moshiClientURL.path)
     }
 
     @Test func voiceRuntimeImporterMovesValidatedPayloadIntoManagedRoot() throws {
@@ -188,6 +189,7 @@ struct VibeTalkerTests {
 
         let sourceInstallation = RuntimeInstallation(rootURL: source)
         let requiredFiles = [
+            sourceInstallation.moshiClientURL.appending(path: "index.html"),
             sourceInstallation.mlxSitePackagesURL
                 .appending(path: "moshi_mlx/__init__.py"),
             sourceInstallation.ragSitePackagesURL
@@ -394,6 +396,16 @@ struct VibeTalkerTests {
             "provider": "vibetalker-omlx",
             "modelId": "fixture-model"
         ])
+    }
+
+    @Test func builtInProvidersUsePinnedPiDefaults() {
+        #expect(CodingProvider.anthropic.defaultPiModelID == "claude-opus-4-8")
+        #expect(CodingProvider.openAI.defaultPiModelID == "gpt-5.5")
+        #expect(
+            CodingProvider.openRouter.defaultPiModelID
+                == "moonshotai/kimi-k2.6"
+        )
+        #expect(CodingProvider.responsesCompatible.defaultPiModelID == nil)
     }
 
     @Test func interactionValidatorRejectsStaleAndPartialOutput() throws {
@@ -645,6 +657,41 @@ struct VibeTalkerTests {
         let choice = try #require(choices.first)
         let message = try #require(choice["message"] as? [String: Any])
         #expect(message["content"] as? String == "Work started in Workspace.")
+    }
+
+    @Test func proactiveCompletionReachesMoshiWithoutACommittedUtterance() async throws {
+        let bridge = MoshiReferenceBridge()
+        let deliveredToMoshi = ReferenceCollector()
+        await bridge.setDeliverySink { delivery in
+            try await deliveredToMoshi.deliver(delivery)
+        }
+        let sessionID = UUID()
+        await bridge.beginSession(sessionID) { _ in
+            Issue.record("Proactive delivery must not invoke the transcript commit handler.")
+            throw MoshiReferenceAdapterError.invalidRequest
+        }
+
+        let text = PiTerminalOutcome.completed(
+            summary: "Changed one file and verified the test."
+        ).proactiveReference(projectName: "Workspace")
+        let delivery = try await bridge.deliverProactive(text)
+
+        #expect(delivery.voiceSessionID == sessionID)
+        #expect(
+            delivery.text
+                == "Work in Workspace is complete. Changed one file and verified the test."
+        )
+        #expect(await deliveredToMoshi.deliveries() == [delivery])
+    }
+
+    @Test func proactiveCompletionRedactsSecretsAndStaysBounded() {
+        let secret = "api_key=should-never-be-spoken"
+        let summary = secret + " " + String(repeating: "verified ", count: 100)
+        let reference = PiTerminalOutcome.completed(summary: summary)
+            .proactiveReference(projectName: "Workspace")
+
+        #expect(reference.count == 400)
+        #expect(!reference.contains("should-never-be-spoken"))
     }
 
     @Test func loopbackReferenceServerServesPinnedMoshiRoute() async throws {

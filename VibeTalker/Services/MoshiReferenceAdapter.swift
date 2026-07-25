@@ -109,6 +109,21 @@ actor MoshiReferenceBridge: ReferenceDelivering {
         await events(.reference, "Reference: \(delivery.text)")
     }
 
+    func deliverProactive(_ text: String) async throws -> ReferenceDelivery {
+        guard let voiceSessionID else {
+            throw MoshiReferenceAdapterError.inactiveSession
+        }
+        let delivery = ReferenceDelivery(
+            voiceSessionID: voiceSessionID,
+            utteranceID: UUID(),
+            interactionRequestID: UUID(),
+            text: text
+        )
+        try await deliverySink(delivery)
+        await events(.reference, "Proactive Reference: \(delivery.text)")
+        return delivery
+    }
+
     func commit(
         utteranceID: UUID,
         revision: UInt64,

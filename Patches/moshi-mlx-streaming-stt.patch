@@ -1,22 +1,19 @@
 diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
 --- a/moshi_mlx/moshi_mlx/local_web.py
 +++ b/moshi_mlx/moshi_mlx/local_web.py
-@@ -10,6 +10,7 @@ import ssl
- import tarfile
+@@ -10,6 +10,7 @@ import tarfile
+ import tempfile
  import time
  import sys
 +import uuid
  import numpy as np
  import multiprocessing
  from pathlib import Path
-@@ -22,6 +23,7 @@ from tempfile import TemporaryDirectory
- mimetypes.knownfiles = []
+@@ -23,3 +24,4 @@ mimetypes.knownfiles = []
  import aiohttp
  from aiohttp import web
 +import msgpack
  import webbrowser
- 
- import mlx.core as mx
 @@ -304,12 +306,53 @@ async def web_server(args, instance, static: str | None = None):
                  await asyncio.sleep(0.001)
  

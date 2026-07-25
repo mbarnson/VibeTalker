@@ -46,6 +46,15 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
         case .anthropic, .openAI, .openRouter: nil
         }
     }
+
+    var defaultPiModelID: String? {
+        switch self {
+        case .anthropic: "claude-opus-4-8"
+        case .openAI: "gpt-5.5"
+        case .openRouter: "moonshotai/kimi-k2.6"
+        case .openAICompatible, .responsesCompatible: nil
+        }
+    }
 }
 
 nonisolated struct CodingProviderCredential: Sendable {

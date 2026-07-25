@@ -1,0 +1,29 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index b04c488..f499b03 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -57,7 +57,21 @@ def log(level: str, msg: str):
+         prefix = colorize("[Err ]", "1;31")
+     else:
+         raise ValueError(f"Unknown level {level}")
+-    print(prefix + " " + msg)
+-
+-
++    payload = (prefix + " " + msg + "\n").encode("utf-8")
++    descriptor = sys.stdout.fileno()
++    was_blocking = os.get_blocking(descriptor)
++    try:
++        if was_blocking:
++            os.set_blocking(descriptor, False)
++        try:
++            os.write(descriptor, payload)
++        except BlockingIOError:
++            # App-hosted stdout is diagnostic-only and must never stall audio
++            # or a loopback API response when its pipe is under pressure.
++            pass
++    finally:
++        if was_blocking:
++            os.set_blocking(descriptor, True)
++
++
+ def hf_hub_download(repo, path: str) -> str:

@@ -1,5 +1,17 @@
+import AppKit
 import Foundation
 import Observation
+
+nonisolated enum VoiceRuntimeReadinessError: LocalizedError {
+    case timedOut(RuntimeService)
+
+    var errorDescription: String? {
+        switch self {
+        case .timedOut(let service):
+            "\(service.rawValue) did not become ready before the startup deadline."
+        }
+    }
+}
 
 enum RuntimeHealth: String, Sendable {
     case idle
@@ -272,12 +284,26 @@ final class AppModel {
                     customProvider: customProvider
                 )
                 try await piClient.start(spec: spec, events: eventSink)
+                let piProvider: String
+                let piModelID: String
                 if let customProvider {
-                    _ = try await piClient.request(.setModel(
-                        id: UUID().uuidString,
-                        provider: PiCustomProviderConfiguration.providerID,
-                        modelID: customProvider.modelID
-                    ))
+                    piProvider = PiCustomProviderConfiguration.providerID
+                    piModelID = customProvider.modelID
+                } else if let defaultModelID = codingProvider.defaultPiModelID {
+                    piProvider = codingProvider.piProviderID
+                    piModelID = defaultModelID
+                } else {
+                    throw RuntimeInstallationError.invalidCustomProvider
+                }
+                let modelResponse = try await piClient.request(.setModel(
+                    id: UUID().uuidString,
+                    provider: piProvider,
+                    modelID: piModelID
+                ))
+                guard modelResponse.success == true else {
+                    throw PiRPCClientError.requestFailed(
+                        modelResponse.error ?? "set_model failed"
+                    )
                 }
                 let requestID = UUID().uuidString
                 let response = try await piClient.request(.getState(id: requestID))
@@ -362,13 +388,8 @@ final class AppModel {
                 }
                 await referenceAdapter.reset()
                 let referenceBaseURL = try await referenceServer.start()
-                referenceAdapterReady = true
                 conversationCoordinator = coordinator
                 voiceSessionID = sessionID
-                await publish(
-                    .completion,
-                    "Coordinator adapter ready at \(referenceBaseURL.absoluteString)"
-                )
 
                 let specs = try runtimeInstallation.voiceLaunchSpecs(
                     referenceBaseURL: referenceBaseURL
@@ -376,8 +397,20 @@ final class AppModel {
                 for spec in specs {
                     try await processCoordinator.start(spec, events: eventSink)
                     runtimeStates = await processCoordinator.snapshot()
+                    try await waitForVoiceService(spec.service)
                 }
+                referenceAdapterReady = true
+                await publish(
+                    .completion,
+                    "Coordinator adapter ready at \(referenceBaseURL.absoluteString)"
+                )
                 await publish(.completion, "Local MLX Moshi-RAG topology started")
+                let voiceURL = URL(string: "http://127.0.0.1:8999")!
+                if NSWorkspace.shared.open(voiceURL) {
+                    await publish(.completion, "Opened the local Moshi voice client")
+                } else {
+                    await publish(.error, "Could not open the local Moshi voice client")
+                }
             } catch {
                 await processCoordinator.stop(.moshi)
                 await processCoordinator.stop(.speechToText)
@@ -387,6 +420,32 @@ final class AppModel {
                 await publish(.error, "Voice runtime start failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func waitForVoiceService(_ service: RuntimeService) async throws {
+        let endpoint: URL
+        switch service {
+        case .referenceEncoder:
+            endpoint = URL(string: "http://127.0.0.1:8001/docs")!
+        case .speechToText:
+            endpoint = URL(string: "http://127.0.0.1:8997/")!
+        case .moshi:
+            endpoint = URL(string: "http://127.0.0.1:8999/")!
+        case .pi:
+            return
+        }
+
+        let deadline = ContinuousClock.now + .seconds(45)
+        while ContinuousClock.now < deadline {
+            var request = URLRequest(url: endpoint)
+            request.timeoutInterval = 1
+            if (try? await URLSession.shared.data(for: request)) != nil {
+                await publish(.diagnostic, "\(service.rawValue) readiness probe passed")
+                return
+            }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        throw VoiceRuntimeReadinessError.timedOut(service)
     }
 
     func stopVoiceRuntime() {
@@ -533,15 +592,36 @@ final class AppModel {
             return
         }
 
+        let terminalOutcome: PiTerminalOutcome?
         switch projection.lifecycle {
         case .unchanged:
-            break
+            terminalOutcome = nil
         case .started:
             isJobRunning = true
-        case .ended:
+            terminalOutcome = nil
+        case .ended(let outcome):
             isJobRunning = false
             pendingPiOutcome = nil
+            terminalOutcome = outcome
         }
         await publish(projection.kind, projection.message)
+        if let terminalOutcome {
+            await deliverProactiveReference(terminalOutcome)
+        }
+    }
+
+    private func deliverProactiveReference(_ outcome: PiTerminalOutcome) async {
+        guard referenceAdapterReady, voiceSessionID != nil else { return }
+        let projectName = runtimeInstallation.sandboxWorkspaceURL.lastPathComponent
+        do {
+            _ = try await referenceBridge.deliverProactive(
+                outcome.proactiveReference(projectName: projectName)
+            )
+        } catch {
+            await publish(
+                .error,
+                "Proactive completion delivery failed: \(error.localizedDescription)"
+            )
+        }
     }
 }

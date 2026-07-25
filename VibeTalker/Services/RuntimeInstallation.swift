@@ -53,6 +53,13 @@ nonisolated struct RuntimeInstallation: Sendable {
         bundledVoiceRuntimeRootURL.appending(path: "Bin/vibetalker-stt")
     }
 
+    var moshiClientURL: URL {
+        bundledVoiceRuntimeRootURL.appending(
+            path: "Client",
+            directoryHint: .isDirectory
+        )
+    }
+
     var mlxWorkingDirectoryURL: URL {
         bundledVoiceRuntimeRootURL.appending(
             path: "moshi-mlx",
@@ -145,6 +152,11 @@ nonisolated struct RuntimeInstallation: Sendable {
             file(
                 "Moshi-RAG conditioner package",
                 ragSitePackagesURL.appending(path: "moshi/__init__.py"),
+                fileManager: fileManager
+            ),
+            file(
+                "Pinned Moshi browser client",
+                moshiClientURL.appending(path: "index.html"),
                 fileManager: fileManager
             ),
             file("MLX Moshi-RAG weights", moshiWeightURL, fileManager: fileManager),
@@ -242,7 +254,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--first-speaker", "user",
                     "--host", "127.0.0.1",
                     "--port", "8999",
-                    "--static", "none",
+                    "--static", moshiClientURL.path,
                     "--no-browser",
                     "--stt-url", sttURL,
                     "--transcript-url", transcriptURL

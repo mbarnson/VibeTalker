@@ -4,6 +4,29 @@ nonisolated enum PiTerminalOutcome: Equatable, Sendable {
     case completed(summary: String?)
     case aborted
     case failed(String)
+
+    func proactiveReference(projectName: String) -> String {
+        let project = projectName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix: String
+        switch self {
+        case .completed(let summary):
+            let normalized = summary?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            prefix = normalized.flatMap { $0.isEmpty ? nil : $0 }
+                .map { "Work in \(project) is complete. \($0)" }
+                ?? "Work in \(project) is complete."
+        case .aborted:
+            prefix = "Work in \(project) was cancelled."
+        case .failed(let message):
+            let normalized = message
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            prefix = normalized.isEmpty
+                ? "Work in \(project) failed."
+                : "Work in \(project) failed. \(normalized)"
+        }
+        return String(SecretRedactor.redact(prefix).prefix(400))
+    }
 }
 
 nonisolated struct PiJobEventProjection: Equatable, Sendable {
