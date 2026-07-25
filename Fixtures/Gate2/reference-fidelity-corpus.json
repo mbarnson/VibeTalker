@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "frozen_at": "2026-07-25",
+  "protocol": {
+    "spoken_prefix": "Moshi, ",
+    "append_required_answer": true
+  },
+  "rubric": {
+    "fully_correct": "The Moshi text stream explicitly contains every required phrase for the turn and contains no forbidden phrase.",
+    "partial": "The response is relevant but omits or only vaguely implies a required phrase.",
+    "contradiction": "The response asserts any forbidden phrase as the answer or otherwise directly contradicts the injected Reference.",
+    "gate": "Each independent run must score at least 8 of 10 fully correct, the aggregate must score at least 17 of 20, and no turn may be a contradiction."
+  },
+  "runs": [
+    {
+      "id": "run-1",
+      "turns": [
+        {
+          "id": "r1-color",
+          "reference": "For the next answer, use this exact fact: the verification color is cobalt. If asked for the verification color, answer cobalt. Do not substitute another color.",
+          "prompt": "What is the verification color?",
+          "required_phrases": ["cobalt"],
+          "forbidden_phrases": ["copper", "crimson", "amber"]
+        },
+        {
+          "id": "r1-codename",
+          "reference": "For the next answer, use this exact fact: the build codename is Kestrel. If asked for the build codename, answer Kestrel.",
+          "prompt": "What is the build codename?",
+          "required_phrases": ["kestrel"],
+          "forbidden_phrases": ["falcon", "raven", "sparrow"]
+        },
+        {
+          "id": "r1-tree",
+          "reference": "For the next answer, use this exact fact: the courtyard tree is a cedar. If asked which tree is in the courtyard, answer cedar.",
+          "prompt": "Which tree is in the courtyard?",
+          "required_phrases": ["cedar"],
+          "forbidden_phrases": ["maple", "willow", "pine"]
+        },
+        {
+          "id": "r1-city",
+          "reference": "For the next answer, use this exact fact: the conference city is Portland. If asked where the conference is, answer Portland.",
+          "prompt": "Which city is hosting the conference?",
+          "required_phrases": ["portland"],
+          "forbidden_phrases": ["seattle", "denver", "austin"]
+        },
+        {
+          "id": "r1-animal",
+          "reference": "For the next answer, use this exact fact: the verification animal is an otter. If asked for the verification animal, answer otter.",
+          "prompt": "What is the verification animal?",
+          "required_phrases": ["otter"],
+          "forbidden_phrases": ["badger", "beaver", "rabbit"]
+        },
+        {
+          "id": "r1-day",
+          "reference": "For the next answer, use this exact fact: the maintenance day is Tuesday. If asked when maintenance happens, answer Tuesday.",
+          "prompt": "What day does maintenance happen?",
+          "required_phrases": ["tuesday"],
+          "forbidden_phrases": ["monday", "thursday", "friday"]
+        },
+        {
+          "id": "r1-object",
+          "reference": "For the next answer, use this exact fact: the museum gift is a silver compass. If asked about the museum gift, answer silver compass.",
+          "prompt": "What is the museum gift?",
+          "required_phrases": ["silver", "compass"],
+          "forbidden_phrases": ["gold watch", "bronze key"]
+        },
+        {
+          "id": "r1-folder",
+          "reference": "For the next answer, use this exact fact: the archive folder is named Atlas. If asked for the archive folder, answer Atlas.",
+          "prompt": "What is the archive folder named?",
+          "required_phrases": ["atlas"],
+          "forbidden_phrases": ["apollo", "orion", "mercury"]
+        },
+        {
+          "id": "r1-drink",
+          "reference": "For the next answer, use this exact fact: the team drink is jasmine tea. If asked what the team drinks, answer jasmine tea.",
+          "prompt": "What does the team drink?",
+          "required_phrases": ["jasmine", "tea"],
+          "forbidden_phrases": ["coffee", "lemonade", "cocoa"]
+        },
+        {
+          "id": "r1-symbol",
+          "reference": "For the next answer, use this exact fact: the release symbol is a maple leaf. If asked for the release symbol, answer maple leaf.",
+          "prompt": "What is the release symbol?",
+          "required_phrases": ["maple", "leaf"],
+          "forbidden_phrases": ["oak leaf", "star", "crescent"]
+        }
+      ]
+    },
+    {
+      "id": "run-2",
+      "turns": [
+        {
+          "id": "r2-color",
+          "reference": "For the next answer, use this exact fact: the signal color is violet. If asked for the signal color, answer violet. Do not substitute another color.",
+          "prompt": "What is the signal color?",
+          "required_phrases": ["violet"],
+          "forbidden_phrases": ["indigo", "orange", "green"]
+        },
+        {
+          "id": "r2-codename",
+          "reference": "For the next answer, use this exact fact: the project codename is Lantern. If asked for the project codename, answer Lantern.",
+          "prompt": "What is the project codename?",
+          "required_phrases": ["lantern"],
+          "forbidden_phrases": ["beacon", "torch", "lighthouse"]
+        },
+        {
+          "id": "r2-tree",
+          "reference": "For the next answer, use this exact fact: the garden tree is a magnolia. If asked which tree is in the garden, answer magnolia.",
+          "prompt": "Which tree is in the garden?",
+          "required_phrases": ["magnolia"],
+          "forbidden_phrases": ["cedar", "birch", "elm"]
+        },
+        {
+          "id": "r2-city",
+          "reference": "For the next answer, use this exact fact: the workshop city is Tucson. If asked where the workshop is, answer Tucson.",
+          "prompt": "Which city is hosting the workshop?",
+          "required_phrases": ["tucson"],
+          "forbidden_phrases": ["phoenix", "reno", "boise"]
+        },
+        {
+          "id": "r2-animal",
+          "reference": "For the next answer, use this exact fact: the team mascot is a puffin. If asked for the team mascot, answer puffin.",
+          "prompt": "What is the team mascot?",
+          "required_phrases": ["puffin"],
+          "forbidden_phrases": ["penguin", "pelican", "parrot"]
+        },
+        {
+          "id": "r2-day",
+          "reference": "For the next answer, use this exact fact: the review day is Wednesday. If asked when the review happens, answer Wednesday.",
+          "prompt": "What day does the review happen?",
+          "required_phrases": ["wednesday"],
+          "forbidden_phrases": ["tuesday", "thursday", "saturday"]
+        },
+        {
+          "id": "r2-object",
+          "reference": "For the next answer, use this exact fact: the library display holds a glass violin. If asked about the library display, answer glass violin.",
+          "prompt": "What does the library display hold?",
+          "required_phrases": ["glass", "violin"],
+          "forbidden_phrases": ["wooden flute", "silver trumpet"]
+        },
+        {
+          "id": "r2-folder",
+          "reference": "For the next answer, use this exact fact: the design folder is named Nimbus. If asked for the design folder, answer Nimbus.",
+          "prompt": "What is the design folder named?",
+          "required_phrases": ["nimbus"],
+          "forbidden_phrases": ["cirrus", "stratus", "cumulus"]
+        },
+        {
+          "id": "r2-drink",
+          "reference": "For the next answer, use this exact fact: the studio drink is ginger tea. If asked what the studio serves, answer ginger tea.",
+          "prompt": "What drink does the studio serve?",
+          "required_phrases": ["ginger", "tea"],
+          "forbidden_phrases": ["coffee", "soda", "cider"]
+        },
+        {
+          "id": "r2-symbol",
+          "reference": "For the next answer, use this exact fact: the launch symbol is a blue heron. If asked for the launch symbol, answer blue heron.",
+          "prompt": "What is the launch symbol?",
+          "required_phrases": ["blue", "heron"],
+          "forbidden_phrases": ["white dove", "red fox", "gold eagle"]
+        }
+      ]
+    }
+  ]
+}
