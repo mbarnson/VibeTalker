@@ -169,6 +169,10 @@ source .env
 set +a
 Vendor/voice-runtime/Python/bin/python3.12 \
   scripts/run-conversation-naturalness.py
+
+# With the signed app reporting Coordinator ready and pi RPC connected:
+Vendor/voice-runtime/Python/bin/python3.12 \
+  scripts/run-signed-pi-duplex.py
 ```
 
 The full-duplex soak runs for ten minutes, retains component logs under
@@ -184,6 +188,12 @@ This hosted evaluator is acceptance instrumentation; the product Interactor
 continues to use the selected OpenAI or oMLX Responses WebSocket provider.
 The frozen q8 result passed 18 of 20 turns and is retained at
 `Fixtures/Acceptance/conversation-naturalness-q8.json`.
+
+The signed pi-duplex harness connects to the app-supervised runtime rather
+than starting a second Moshi process. It commits one fixed coding task and
+three grounded status requests through the app-owned Coordinator while
+streaming ten minutes of speakerless PCM. See
+[`docs/gates/Gate8-signed-pi-duplex.md`](docs/gates/Gate8-signed-pi-duplex.md).
 
 Additional source-build detail is in
 [`docs/voice-runtime-build.md`](docs/voice-runtime-build.md). Gate evidence is
