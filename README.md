@@ -182,6 +182,8 @@ its frozen spoken prompt, and its reference answer to `gpt-realtime-2.1`
 over OpenAI's server-to-server Realtime WebSocket for native audio evaluation.
 This hosted evaluator is acceptance instrumentation; the product Interactor
 continues to use the selected OpenAI or oMLX Responses WebSocket provider.
+The frozen q8 result passed 18 of 20 turns and is retained at
+`Fixtures/Acceptance/conversation-naturalness-q8.json`.
 
 Additional source-build detail is in
 [`docs/voice-runtime-build.md`](docs/voice-runtime-build.md). Gate evidence is

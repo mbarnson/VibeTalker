@@ -1,6 +1,6 @@
 # Gate 7 — Frozen conversation naturalness
 
-Status: **corpus and rubric frozen; evaluation pending**
+Status: **passed — 18 / 20 frozen turns**
 
 PRDv2 requires a fixed 20-turn conversation run with ten factual prompts and
 ten open-ended prompts. At least 16 turns must pass, and ad hoc freeform turns
@@ -68,6 +68,38 @@ A turn passes only when all conditions are true:
 The gate passes only when all 20 frozen turns run and at least 16 pass.
 Factual and open-ended results are reported separately.
 
+## Acceptance result
+
+The frozen q8 run passed on 2026-07-25. The retained result is
+`Fixtures/Acceptance/conversation-naturalness-q8.json`.
+
+| Measurement | Result |
+| --- | ---: |
+| Total turns passed | 18 / 20 |
+| Factual turns passed | 9 / 10 |
+| Open-ended turns passed | 9 / 10 |
+| Minimum decoded audio duration | 11.52 s |
+| Worst per-turn p99 packet gap | 134.7 ms |
+| Maximum observed packet gap | 400.9 ms |
+| Total output packets | 3,218 |
+| Evaluator transport/protocol failures | 0 |
+
+Every turn passed all three objective audio checks. Each of the 20
+`gpt-realtime-2.1` ratings completed on its first attempt. Retained Moshi,
+Reference Encoder, and local-ASR logs contained no runtime exception, codec
+failure, or maximum-step failure.
+
+The two frozen content failures were:
+
+- `factual-sendable`: the answer was relevant and natural, but incorrectly
+  described `Sendable` rather than explaining safe transfer across concurrency
+  domains.
+- `open-compiler-joke`: the answer was relevant and natural, but discussed
+  compilers without delivering the required joke and punch line.
+
+These remain failures. They were not replaced by freeform turns or rescued by
+the strong 18-turn aggregate.
+
 ## Reproduction
 
 ```sh
@@ -79,5 +111,5 @@ Vendor/voice-runtime/Python/bin/python3.12 \
 ```
 
 Captured WAV files and retained component logs remain ignored under `tmp/`.
-The summary will be committed as
-`Fixtures/Acceptance/conversation-naturalness-q8.json` after the frozen run.
+The committed summary is
+`Fixtures/Acceptance/conversation-naturalness-q8.json`.
