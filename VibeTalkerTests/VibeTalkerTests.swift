@@ -22,6 +22,56 @@ struct VibeTalkerTests {
         #expect(events[1].message == "[REDACTED]")
     }
 
+    @Test func ledgerPersistsVersionedJSONLAndRestoresBoundedHistory() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appending(path: "VibeTalker-Ledger-\(UUID().uuidString)")
+        let fileURL = root.appending(path: "events.jsonl")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let ledger = EventLedger(fileURL: fileURL, recentLimit: 2)
+        _ = await ledger.append(.system, "started", source: "fixture")
+        _ = await ledger.append(.request, "api_key=do-not-persist")
+        _ = await ledger.append(
+            .completion,
+            "finished",
+            voiceSessionID: UUID(),
+            utteranceID: UUID(),
+            revision: 4,
+            interactionRequestID: UUID(),
+            actionJobID: UUID()
+        )
+
+        var records: [LedgerEvent] = []
+        for _ in 0..<50 {
+            if let data = try? Data(contentsOf: fileURL) {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                records = data
+                    .split(separator: 0x0A)
+                    .compactMap {
+                        try? decoder.decode(LedgerEvent.self, from: Data($0))
+                    }
+                if records.count == 3 {
+                    break
+                }
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(records.map(\.sequence) == [1, 2, 3])
+        #expect(records.allSatisfy { $0.schemaVersion == 1 })
+        #expect(records[0].source == "fixture")
+        #expect(records[1].message == "[REDACTED]")
+        #expect(records[2].voiceSessionID != nil)
+        #expect(records[2].utteranceID != nil)
+        #expect(records[2].revision == 4)
+        #expect(records[2].interactionRequestID != nil)
+        #expect(records[2].actionJobID != nil)
+
+        let restored = EventLedger(fileURL: fileURL, recentLimit: 2)
+        #expect(await restored.snapshot().map(\.sequence) == [2, 3])
+    }
+
     @Test func redactorCoversProviderTokens() {
         let value = SecretRedactor.redact(
             "token: abcdefghijklmnop sk-abcdefghijklmnop ghp_abcdefghijklmnopqrstuvwxyz"

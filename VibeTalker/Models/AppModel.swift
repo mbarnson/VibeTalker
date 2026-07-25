@@ -47,7 +47,7 @@ final class AppModel {
     var isImportingVoiceRuntime = false
     var voiceImportStatus = "Select a source-built staging folder"
 
-    private let ledger = EventLedger()
+    private let ledger: EventLedger
     private let preflight: NativePreflight
     private let processCoordinator: ProcessCoordinator
     private let runtimeInstallation: RuntimeInstallation
@@ -81,6 +81,12 @@ final class AppModel {
                 .appending(path: "Contents/Resources/voice-runtime"),
             bundledVoiceExecutableURL: Bundle.main.bundleURL
                 .appending(path: "Contents/Helpers/vibetalker-python")
+        )
+        self.ledger = EventLedger(
+            fileURL: resolvedInstallation.rootURL
+                .deletingLastPathComponent()
+                .appending(path: "EventLedger", directoryHint: .isDirectory)
+                .appending(path: "events.jsonl")
         )
         self.preflight = preflight
         self.processCoordinator = processCoordinator
