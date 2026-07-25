@@ -83,6 +83,35 @@ struct ContentView: View {
                 .padding(.vertical, 4)
             }
 
+            GroupBox("Pinned pi runtime") {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(model.piArtifacts) { artifact in
+                        HStack {
+                            Image(systemName: artifact.available
+                                ? "checkmark.circle.fill"
+                                : "xmark.circle")
+                                .foregroundStyle(artifact.available ? .green : .secondary)
+                            Text(artifact.label)
+                            Spacer()
+                            Text(artifact.available ? "Ready" : "Missing")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    HStack {
+                        Text(model.piRPCReady ? "RPC connected" : "RPC stopped")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Stop Pi") { model.stopPiRuntime() }
+                        Button("Start Pi") { model.startPiRuntime() }
+                            .disabled(
+                                model.health != .ready ||
+                                model.piArtifacts.contains(where: { !$0.available })
+                            )
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
             Spacer()
         }
         .padding(20)

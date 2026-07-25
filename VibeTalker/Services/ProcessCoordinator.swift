@@ -1,20 +1,20 @@
 import Foundation
 
-enum RuntimeService: String, CaseIterable, Sendable {
+nonisolated enum RuntimeService: String, CaseIterable, Sendable {
     case moshi
     case referenceEncoder
     case speechToText
     case pi
 }
 
-enum RuntimeProcessState: Equatable, Sendable {
+nonisolated enum RuntimeProcessState: Equatable, Sendable {
     case stopped
     case starting
     case running(processIdentifier: Int32)
     case failed(String)
 }
 
-struct RuntimeProcessSpec: Sendable {
+nonisolated struct RuntimeProcessSpec: Sendable {
     let service: RuntimeService
     let executableURL: URL
     let arguments: [String]
@@ -40,7 +40,7 @@ struct RuntimeProcessSpec: Sendable {
     }
 }
 
-enum ProcessCoordinatorError: LocalizedError, Equatable {
+nonisolated enum ProcessCoordinatorError: LocalizedError, Equatable {
     case alreadyRunning(RuntimeService)
     case executableMissing(String)
     case workingDirectoryMissing(String)
@@ -60,7 +60,7 @@ enum ProcessCoordinatorError: LocalizedError, Equatable {
     }
 }
 
-struct RuntimeProcessEvent: Sendable {
+nonisolated struct RuntimeProcessEvent: Sendable {
     enum Stream: String, Sendable {
         case lifecycle
         case standardOutput
@@ -72,13 +72,20 @@ struct RuntimeProcessEvent: Sendable {
     let message: String
 }
 
-private final class ManagedProcess: @unchecked Sendable {
+private nonisolated final class ManagedProcess: @unchecked Sendable {
     let process: Process
+    let standardInput: Pipe
     let standardOutput: Pipe
     let standardError: Pipe
 
-    init(process: Process, standardOutput: Pipe, standardError: Pipe) {
+    init(
+        process: Process,
+        standardInput: Pipe,
+        standardOutput: Pipe,
+        standardError: Pipe
+    ) {
         self.process = process
+        self.standardInput = standardInput
         self.standardOutput = standardOutput
         self.standardError = standardError
     }
@@ -112,21 +119,35 @@ actor ProcessCoordinator {
         states[spec.service] = .starting
 
         let process = Process()
+        let standardInput = Pipe()
         let standardOutput = Pipe()
         let standardError = Pipe()
+        let outputLines = LineAccumulator()
+        let errorLines = LineAccumulator()
         process.executableURL = spec.executableURL
         process.arguments = spec.arguments
         process.currentDirectoryURL = spec.workingDirectoryURL
         process.environment = spec.environment
+        process.standardInput = standardInput
         process.standardOutput = standardOutput
         process.standardError = standardError
 
         let service = spec.service
         standardOutput.fileHandleForReading.readabilityHandler = {
-            Self.forward($0.availableData, service: service, stream: .standardOutput, to: events)
+            Self.forward(
+                outputLines.consume($0.availableData),
+                service: service,
+                stream: .standardOutput,
+                to: events
+            )
         }
         standardError.fileHandleForReading.readabilityHandler = {
-            Self.forward($0.availableData, service: service, stream: .standardError, to: events)
+            Self.forward(
+                errorLines.consume($0.availableData),
+                service: service,
+                stream: .standardError,
+                to: events
+            )
         }
         process.terminationHandler = { [weak self] completed in
             Task {
@@ -147,6 +168,7 @@ actor ProcessCoordinator {
 
         managed[service] = ManagedProcess(
             process: process,
+            standardInput: standardInput,
             standardOutput: standardOutput,
             standardError: standardError
         )
@@ -173,6 +195,16 @@ actor ProcessCoordinator {
         }
     }
 
+    func writeLine(_ line: String, to service: RuntimeService) throws {
+        guard let item = managed[service], item.process.isRunning else {
+            throw ProcessCoordinatorError.launchFailed(service, "process is not running")
+        }
+        guard !line.contains("\n"), let data = "\(line)\n".data(using: .utf8) else {
+            throw ProcessCoordinatorError.launchFailed(service, "invalid JSONL record")
+        }
+        try item.standardInput.fileHandleForWriting.write(contentsOf: data)
+    }
+
     private func didTerminate(
         _ service: RuntimeService,
         status: Int32,
@@ -193,22 +225,44 @@ actor ProcessCoordinator {
     }
 
     private nonisolated static func forward(
-        _ data: Data,
+        _ lines: [String],
         service: RuntimeService,
         stream: RuntimeProcessEvent.Stream,
         to events: @escaping EventSink
     ) {
-        guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else {
-            return
-        }
-        for line in text.split(whereSeparator: \.isNewline) {
+        for line in lines {
             Task {
                 await events(.init(
                     service: service,
                     stream: stream,
-                    message: String(line)
+                    message: line
                 ))
             }
         }
+    }
+}
+
+private nonisolated final class LineAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pending = Data()
+
+    func consume(_ data: Data) -> [String] {
+        guard !data.isEmpty else { return [] }
+        lock.lock()
+        defer { lock.unlock() }
+        pending.append(data)
+
+        var records: [String] = []
+        while let newline = pending.firstIndex(of: 0x0A) {
+            var record = pending[..<newline]
+            if record.last == 0x0D {
+                record = record.dropLast()
+            }
+            if let line = String(data: record, encoding: .utf8) {
+                records.append(line)
+            }
+            pending.removeSubrange(...newline)
+        }
+        return records
     }
 }

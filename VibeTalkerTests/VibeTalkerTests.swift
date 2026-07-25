@@ -144,6 +144,38 @@ struct VibeTalkerTests {
         #expect(result.referenceResponse == "The request concerns the selected project.")
         #expect(result.piRequest?.instruction == "Update README and verify the diff.")
     }
+
+    @Test func processCoordinatorWritesAndReassemblesJSONLines() async throws {
+        let coordinator = ProcessCoordinator()
+        let collector = RuntimeEventCollector()
+        let spec = RuntimeProcessSpec(
+            service: .pi,
+            executableURL: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "IFS= read -r line; printf '%s\\n' \"$line\""],
+            workingDirectoryURL: URL(fileURLWithPath: "/tmp"),
+            environment: ["PATH": "/usr/bin:/bin"]
+        )
+        try await coordinator.start(spec) { event in
+            await collector.append(event)
+        }
+
+        try await coordinator.writeLine(
+            #"{"id":"round-trip","type":"get_state"}"#,
+            to: .pi
+        )
+        for _ in 0..<20 {
+            if await collector.messages().contains(
+                #"{"id":"round-trip","type":"get_state"}"#
+            ) {
+                break
+            }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+
+        #expect(await collector.messages().contains(
+            #"{"id":"round-trip","type":"get_state"}"#
+        ))
+    }
 }
 
 private actor RuntimeEventCollector {

@@ -61,6 +61,24 @@ nonisolated struct RuntimeInstallation: Sendable {
         rootURL.appending(path: "moshi-rag-config.json")
     }
 
+    var piWorkingDirectoryURL: URL {
+        rootURL.appending(path: "pi", directoryHint: .isDirectory)
+    }
+
+    var piRPCEntryURL: URL {
+        piWorkingDirectoryURL.appending(path: "packages/coding-agent/dist/rpc-entry.js")
+    }
+
+    var piToolPolicyURL: URL {
+        piWorkingDirectoryURL.appending(path: "vibetalker-tool-policy.ts")
+    }
+
+    var sandboxWorkspaceURL: URL {
+        rootURL
+            .deletingLastPathComponent()
+            .appending(path: "Workspace", directoryHint: .isDirectory)
+    }
+
     func diagnostics(fileManager: FileManager = .default) -> [RuntimeArtifactDiagnostic] {
         [
             executable("MLX Python", mlxPythonURL, fileManager: fileManager),
@@ -123,6 +141,52 @@ nonisolated struct RuntimeInstallation: Sendable {
                 environment: commonEnvironment
             )
         ]
+    }
+
+    func piDiagnostics(
+        nodeURL: URL,
+        fileManager: FileManager = .default
+    ) -> [RuntimeArtifactDiagnostic] {
+        [
+            executable("Embedded Node runtime", nodeURL, fileManager: fileManager),
+            file("Pinned pi RPC build", piRPCEntryURL, fileManager: fileManager),
+            file("VibeTalker pi tool policy", piToolPolicyURL, fileManager: fileManager)
+        ]
+    }
+
+    func piLaunchSpec(nodeURL: URL) throws -> RuntimeProcessSpec {
+        let failures = piDiagnostics(nodeURL: nodeURL).filter { !$0.available }
+        guard failures.isEmpty else {
+            throw RuntimeInstallationError.missingArtifacts(failures.map(\.label))
+        }
+        try FileManager.default.createDirectory(
+            at: sandboxWorkspaceURL,
+            withIntermediateDirectories: true
+        )
+
+        return RuntimeProcessSpec(
+            service: .pi,
+            executableURL: nodeURL,
+            arguments: [
+                piRPCEntryURL.path,
+                "--no-session",
+                "--no-extensions",
+                "--extension", piToolPolicyURL.path,
+                "--no-skills",
+                "--no-prompt-templates",
+                "--no-themes",
+                "--no-context-files",
+                "--no-approve"
+            ],
+            workingDirectoryURL: sandboxWorkspaceURL,
+            environment: [
+                "HOME": rootURL.path,
+                "NODE_NO_WARNINGS": "1",
+                "PATH": "/usr/bin:/bin",
+                "PI_CODING_AGENT_DIR": rootURL.appending(path: "PiConfig").path,
+                "TMPDIR": FileManager.default.temporaryDirectory.path
+            ]
+        )
     }
 
     private func executable(

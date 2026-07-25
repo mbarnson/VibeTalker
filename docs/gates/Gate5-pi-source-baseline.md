@@ -52,3 +52,18 @@ Gate 5 remains open until the native app embeds the compatible runtime and
 source build, loads only VibeTalker's pinned tool-policy extension, validates
 the registered tool manifest, dispatches a harmless app-container edit, and
 passes the write/network escape fixtures.
+
+## Tool-policy load checkpoint
+
+The tracked `PiExtension/vibetalker-tool-policy.ts` replaces all seven tools in
+the pinned manifest: `read`, `bash`, `edit`, `write`, `grep`, `find`, and `ls`.
+Every file-like path is resolved against the canonical workspace path,
+including existing symlink targets and the nearest existing ancestor of a new
+path. Bash uses a fixed nested `sandbox-exec` profile that permits writes only
+inside the workspace and `/private/tmp` and denies networking.
+
+The build script installs the extension and its manifest alongside the pinned
+pi checkout. In the isolated RPC fixture, pi loaded only this explicit
+extension, reported all seven expected overrides with no missing or unknown
+tools, and then completed a correlated `get_state` request. Model-driven
+write/network escape fixtures remain required before Gate 5 passes.

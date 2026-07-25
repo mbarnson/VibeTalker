@@ -4,6 +4,8 @@ set -euo pipefail
 repository=https://github.com/earendil-works/pi.git
 revision=5a073885b5f23cd6125cda0927cf50acf2bf22fb
 checkout="${1:-$PWD/Vendor/pi-mono}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(dirname "$script_dir")"
 
 if [[ ! -d "$checkout/.git" ]]; then
     mkdir -p "$(dirname "$checkout")"
@@ -29,5 +31,9 @@ npm --prefix "$checkout/packages/tui" run build
 "$checkout/node_modules/.bin/tsgo" -p "$checkout/packages/ai/tsconfig.build.json"
 npm --prefix "$checkout/packages/agent" run build
 npm --prefix "$checkout/packages/coding-agent" run build
+cp "$repo_root/PiExtension/vibetalker-tool-policy.ts" \
+    "$checkout/vibetalker-tool-policy.ts"
+cp "$repo_root/PiExtension/tool-manifest.json" \
+    "$checkout/vibetalker-tool-manifest.json"
 
 echo "Built pi coding agent from $repository at $revision"

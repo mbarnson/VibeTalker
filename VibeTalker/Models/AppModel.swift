@@ -20,21 +20,30 @@ final class AppModel {
     var isJobRunning = false
     var runtimeStates: [RuntimeService: RuntimeProcessState] = [:]
     var runtimeArtifacts: [RuntimeArtifactDiagnostic] = []
+    var piArtifacts: [RuntimeArtifactDiagnostic] = []
+    var piRPCReady = false
 
     private let ledger = EventLedger()
     private let preflight: NativePreflight
     private let processCoordinator: ProcessCoordinator
     private let runtimeInstallation: RuntimeInstallation
+    private let piClient: PiRPCClient
+    private let nodeHelperURL: URL
 
     init(
         preflight: NativePreflight = NativePreflight(),
         processCoordinator: ProcessCoordinator = ProcessCoordinator(),
-        runtimeInstallation: RuntimeInstallation = RuntimeInstallation()
+        runtimeInstallation: RuntimeInstallation = RuntimeInstallation(),
+        nodeHelperURL: URL? = nil
     ) {
         self.preflight = preflight
         self.processCoordinator = processCoordinator
         self.runtimeInstallation = runtimeInstallation
+        self.piClient = PiRPCClient(processes: processCoordinator)
+        self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
+            .appending(path: "Contents/Helpers/vibetalker-node")
         self.runtimeArtifacts = runtimeInstallation.diagnostics()
+        self.piArtifacts = runtimeInstallation.piDiagnostics(nodeURL: self.nodeHelperURL)
         Task {
             await publish(.system, "VibeTalker native host initialized")
         }
@@ -42,6 +51,7 @@ final class AppModel {
 
     func refreshRuntimeInstallation() {
         runtimeArtifacts = runtimeInstallation.diagnostics()
+        piArtifacts = runtimeInstallation.piDiagnostics(nodeURL: nodeHelperURL)
         let missing = runtimeArtifacts.filter { !$0.available }
         Task {
             if missing.isEmpty {
@@ -52,6 +62,44 @@ final class AppModel {
                     "Managed voice runtime missing \(missing.count) required artifacts"
                 )
             }
+        }
+    }
+
+    func startPiRuntime() {
+        guard health == .ready else {
+            Task { await publish(.policy, "Pi start declined; native preflight is not ready") }
+            return
+        }
+        let eventSink: PiRPCClient.EventSink = { [weak self] event in
+            await self?.publish(.helper, "pi event: \(event.type)")
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let spec = try runtimeInstallation.piLaunchSpec(nodeURL: nodeHelperURL)
+                try await piClient.start(spec: spec, events: eventSink)
+                let requestID = UUID().uuidString
+                let response = try await piClient.request(.getState(id: requestID))
+                guard response.success == true else {
+                    throw PiRPCClientError.requestFailed(response.error ?? "get_state failed")
+                }
+                piRPCReady = true
+                runtimeStates = await processCoordinator.snapshot()
+                await publish(.completion, "Pinned source-built pi RPC session ready")
+            } catch {
+                piRPCReady = false
+                runtimeStates = await processCoordinator.snapshot()
+                await publish(.error, "Pi runtime start failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func stopPiRuntime() {
+        Task {
+            await piClient.stop()
+            piRPCReady = false
+            runtimeStates = await processCoordinator.snapshot()
+            await publish(.system, "Pi runtime stopped")
         }
     }
 
@@ -122,8 +170,21 @@ final class AppModel {
 
         if isJobRunning {
             if value.lowercased() == "abort" {
-                isJobRunning = false
-                Task { await publish(.policy, "Typed abort accepted; active job cancelled") }
+                Task {
+                    do {
+                        let response = try await piClient.request(
+                            .abort(id: UUID().uuidString)
+                        )
+                        if response.success == true {
+                            isJobRunning = false
+                            await publish(.policy, "Typed abort accepted by pi RPC")
+                        } else {
+                            await publish(.error, "Pi abort failed: \(response.error ?? "unknown")")
+                        }
+                    } catch {
+                        await publish(.error, "Pi abort failed: \(error.localizedDescription)")
+                    }
+                }
             } else {
                 Task {
                     await publish(
@@ -137,7 +198,24 @@ final class AppModel {
 
         Task {
             await publish(.request, "Typed Pi Request: \(value)")
-            await publish(.policy, "Request recorded; pi integration is gated on native preflight")
+            guard piRPCReady else {
+                await publish(.policy, "Request declined; pinned pi RPC session is not ready")
+                return
+            }
+            do {
+                let commandID = UUID().uuidString
+                let response = try await piClient.request(
+                    .prompt(id: commandID, message: value)
+                )
+                if response.success == true {
+                    isJobRunning = true
+                    await publish(.policy, "Typed request accepted by pi RPC")
+                } else {
+                    await publish(.error, "Pi declined request: \(response.error ?? "unknown")")
+                }
+            } catch {
+                await publish(.error, "Pi request failed: \(error.localizedDescription)")
+            }
         }
     }
 
