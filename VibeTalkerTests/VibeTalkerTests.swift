@@ -77,6 +77,20 @@ struct VibeTalkerTests {
         }
         #expect(await coordinator.state(for: .referenceEncoder) == .stopped)
     }
+
+    @Test func runtimeInstallationBuildsPinnedLocalTopology() throws {
+        let root = URL(fileURLWithPath: "/tmp/VibeTalker-Runtime-Fixture")
+        let installation = RuntimeInstallation(rootURL: root)
+
+        #expect(installation.mlxPythonURL.path.hasSuffix("moshi-mlx/.venv/bin/python"))
+        #expect(installation.ragPythonURL.path.hasSuffix("moshi-rag/.venv/bin/python"))
+        #expect(installation.moshiWeightURL.path.hasSuffix(
+            "Models/moshika-rag-mlx-bf16.safetensors"
+        ))
+        #expect(throws: RuntimeInstallationError.self) {
+            _ = try installation.voiceLaunchSpecs()
+        }
+    }
 }
 
 private actor RuntimeEventCollector {

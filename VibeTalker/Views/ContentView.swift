@@ -47,17 +47,43 @@ struct ContentView: View {
                 .padding(.vertical, 4)
             }
 
-            ContentUnavailableView {
-                Label("Voice backend not started", systemImage: "waveform")
-            } description: {
-                Text("Complete the native preflight before Moshi-RAG integration.")
-            } actions: {
-                Button("Run Native Preflight") {
-                    model.runNativePreflight()
+            GroupBox("Managed local voice runtime") {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(model.runtimeArtifacts) { artifact in
+                        HStack {
+                            Image(systemName: artifact.available
+                                ? "checkmark.circle.fill"
+                                : "xmark.circle")
+                                .foregroundStyle(artifact.available ? .green : .secondary)
+                            Text(artifact.label)
+                            Spacer()
+                            Text(artifact.available ? "Ready" : "Missing")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Button("Refresh") {
+                            model.refreshRuntimeInstallation()
+                        }
+                        Spacer()
+                        Button("Stop") {
+                            model.stopVoiceRuntime()
+                        }
+                        Button("Start Local Voice") {
+                            model.startVoiceRuntime()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            model.health != .ready ||
+                            model.runtimeArtifacts.contains(where: { !$0.available })
+                        )
+                    }
                 }
-                .disabled(model.health == .checking)
+                .padding(.vertical, 4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Spacer()
         }
         .padding(20)
     }

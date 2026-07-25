@@ -18,14 +18,72 @@ final class AppModel {
     var jitStatus = "Not checked"
     var composerText = ""
     var isJobRunning = false
+    var runtimeStates: [RuntimeService: RuntimeProcessState] = [:]
+    var runtimeArtifacts: [RuntimeArtifactDiagnostic] = []
 
     private let ledger = EventLedger()
     private let preflight: NativePreflight
+    private let processCoordinator: ProcessCoordinator
+    private let runtimeInstallation: RuntimeInstallation
 
-    init(preflight: NativePreflight = NativePreflight()) {
+    init(
+        preflight: NativePreflight = NativePreflight(),
+        processCoordinator: ProcessCoordinator = ProcessCoordinator(),
+        runtimeInstallation: RuntimeInstallation = RuntimeInstallation()
+    ) {
         self.preflight = preflight
+        self.processCoordinator = processCoordinator
+        self.runtimeInstallation = runtimeInstallation
+        self.runtimeArtifacts = runtimeInstallation.diagnostics()
         Task {
             await publish(.system, "VibeTalker native host initialized")
+        }
+    }
+
+    func refreshRuntimeInstallation() {
+        runtimeArtifacts = runtimeInstallation.diagnostics()
+        let missing = runtimeArtifacts.filter { !$0.available }
+        Task {
+            if missing.isEmpty {
+                await publish(.diagnostic, "Managed voice runtime is complete")
+            } else {
+                await publish(
+                    .diagnostic,
+                    "Managed voice runtime missing \(missing.count) required artifacts"
+                )
+            }
+        }
+    }
+
+    func startVoiceRuntime() {
+        guard health == .ready else {
+            Task { await publish(.policy, "Voice start declined; native preflight is not ready") }
+            return
+        }
+
+        Task {
+            do {
+                let specs = try runtimeInstallation.voiceLaunchSpecs()
+                for spec in specs {
+                    try await processCoordinator.start(spec) { [weak self] event in
+                        await self?.publishRuntime(event)
+                    }
+                    runtimeStates = await processCoordinator.snapshot()
+                }
+                await publish(.completion, "Local MLX Moshi-RAG topology started")
+            } catch {
+                runtimeStates = await processCoordinator.snapshot()
+                await publish(.error, "Voice runtime start failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func stopVoiceRuntime() {
+        Task {
+            await processCoordinator.stop(.moshi)
+            await processCoordinator.stop(.referenceEncoder)
+            runtimeStates = await processCoordinator.snapshot()
+            await publish(.system, "Voice runtime stop requested")
         }
     }
 
@@ -84,5 +142,11 @@ final class AppModel {
     private func publish(_ kind: LedgerEventKind, _ message: String) async {
         _ = await ledger.append(kind, message)
         events = await ledger.snapshot()
+    }
+
+    private func publishRuntime(_ event: RuntimeProcessEvent) async {
+        let kind: LedgerEventKind = event.stream == .standardError ? .error : .helper
+        await publish(kind, "\(event.service.rawValue): \(event.message)")
+        runtimeStates = await processCoordinator.snapshot()
     }
 }
