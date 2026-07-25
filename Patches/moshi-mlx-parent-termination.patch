@@ -1,0 +1,42 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index f499b03..0cd55f0 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -9,6 +9,7 @@ import queue
+ import os
+ import tarfile
+ import tempfile
++import signal
+ import time
+ import sys
+ import uuid
+@@ -681,15 +682,22 @@ def main():
+     p1.start()
+     p2.start()
+-
++
++    def terminate_children(_signum=None, _frame=None):
++        for child in (p1, p2):
++            if child.is_alive():
++                child.terminate()
++
++    previous_sigterm = signal.signal(signal.SIGTERM, terminate_children)
+     try:
+         while p1.is_alive() and p2.is_alive():
+             time.sleep(0.001)
+     except KeyboardInterrupt:
+         log("warning", "Interrupting, exiting connection.")
+-        p1.terminate()
+-        p2.terminate()
+-
+-    # Wait for both processes to finish
+-    p1.join()
+-    p2.join()
++    finally:
++        signal.signal(signal.SIGTERM, previous_sigterm)
++        terminate_children()
++        # Wait for both processes to finish so the app never leaves a listener
++        # or an MLX worker behind when it terminates the parent process.
++        p1.join()
++        p2.join()
+     log("info", "All done!")

@@ -546,7 +546,7 @@ final class AppModel {
         case .referenceEncoder:
             endpoint = URL(string: "http://127.0.0.1:8001/docs")!
         case .speechToText:
-            endpoint = URL(string: "http://127.0.0.1:8997/")!
+            endpoint = URL(string: "http://127.0.0.1:8997/api/build_info")!
         case .moshi:
             endpoint = URL(string: "http://127.0.0.1:8999/")!
         case .pi:
