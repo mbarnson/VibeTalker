@@ -26,6 +26,8 @@ nonisolated struct InteractorConfiguration: Sendable {
 nonisolated enum InteractorError: LocalizedError {
     case invalidHTTPResponse
     case providerFailure(Int, String)
+    case providerStreamFailure(String)
+    case streamEndedBeforeCompletion
     case missingStructuredOutput
     case malformedStructuredOutput(String)
 
@@ -35,6 +37,10 @@ nonisolated enum InteractorError: LocalizedError {
             "Interactor returned a non-HTTP response."
         case .providerFailure(let status, let message):
             "Interactor failed with HTTP \(status): \(message)"
+        case .providerStreamFailure(let message):
+            "Interactor stream failed: \(message)"
+        case .streamEndedBeforeCompletion:
+            "Interactor stream ended before response.completed."
         case .missingStructuredOutput:
             "Interactor response did not contain structured output."
         case .malformedStructuredOutput(let message):
@@ -111,6 +117,7 @@ actor ResponsesInteractor: InteractionServing {
         var request = URLRequest(url: configuration.endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         if let apiKey = configuration.apiKey {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
@@ -119,22 +126,29 @@ actor ResponsesInteractor: InteractionServing {
             previousResponseID: previousResponseID
         ))
 
-        let (data, response) = try await session.data(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw InteractorError.invalidHTTPResponse
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
+            var body = ""
+            for try await line in bytes.lines {
+                body.append(line)
+                body.append("\n")
+            }
             throw InteractorError.providerFailure(
                 httpResponse.statusCode,
-                String(data: data, encoding: .utf8) ?? "no response body"
+                body.isEmpty ? "no response body" : body
             )
         }
 
-        let envelope = try JSONDecoder().decode(ResponsesEnvelope.self, from: data)
-        guard let structuredText = envelope.structuredText else {
-            throw InteractorError.missingStructuredOutput
+        var decoder = ResponsesSSEDecoder()
+        for try await line in bytes.lines {
+            if let result = try decoder.consume(line) {
+                return result
+            }
         }
-        return ProviderResult(responseID: envelope.id, structuredText: structuredText)
+        throw InteractorError.streamEndedBeforeCompletion
     }
 
     private func requestBody(
@@ -144,6 +158,7 @@ actor ResponsesInteractor: InteractionServing {
         var body: [String: Any] = [
             "model": configuration.model,
             "store": true,
+            "stream": true,
             "instructions": Self.developerInstructions,
             "input": [[
                 "role": "user",
@@ -210,12 +225,16 @@ actor ResponsesInteractor: InteractionServing {
     ]
 }
 
-private nonisolated struct ProviderResult: Sendable {
+nonisolated struct ProviderResult: Equatable, Sendable {
     let responseID: String?
     let structuredText: String
 }
 
-private nonisolated struct ResponsesEnvelope: Decodable {
+nonisolated struct ResponsesEnvelope: Decodable {
+    struct ProviderError: Decodable {
+        let message: String?
+    }
+
     struct Output: Decodable {
         struct Content: Decodable {
             let type: String?
@@ -228,11 +247,13 @@ private nonisolated struct ResponsesEnvelope: Decodable {
     let id: String?
     let output: [Output]?
     let outputText: String?
+    let error: ProviderError?
 
     enum CodingKeys: String, CodingKey {
         case id
         case output
         case outputText = "output_text"
+        case error
     }
 
     var structuredText: String? {
@@ -244,4 +265,59 @@ private nonisolated struct ResponsesEnvelope: Decodable {
             .first { $0.type == "output_text" && $0.text != nil }?
             .text
     }
+}
+
+nonisolated struct ResponsesSSEDecoder {
+    private var eventName: String?
+
+    mutating func consume(_ line: String) throws -> ProviderResult? {
+        if line.hasPrefix("event:") {
+            eventName = String(line.dropFirst("event:".count))
+                .trimmingCharacters(in: .whitespaces)
+            return nil
+        }
+        guard line.hasPrefix("data:") else {
+            if line.isEmpty {
+                eventName = nil
+            }
+            return nil
+        }
+
+        let payload = String(line.dropFirst("data:".count))
+            .trimmingCharacters(in: .whitespaces)
+        guard payload != "[DONE]", !payload.isEmpty else { return nil }
+        let data = Data(payload.utf8)
+        let event = try JSONDecoder().decode(ResponsesStreamEvent.self, from: data)
+        let type = event.type ?? eventName
+
+        switch type {
+        case "response.completed":
+            guard let response = event.response,
+                  let structuredText = response.structuredText else {
+                throw InteractorError.missingStructuredOutput
+            }
+            return ProviderResult(
+                responseID: response.id,
+                structuredText: structuredText
+            )
+        case "response.failed", "error":
+            throw InteractorError.providerStreamFailure(
+                event.error?.message
+                    ?? event.response?.error?.message
+                    ?? "unknown provider stream error"
+            )
+        default:
+            return nil
+        }
+    }
+}
+
+private nonisolated struct ResponsesStreamEvent: Decodable {
+    struct ProviderError: Decodable {
+        let message: String?
+    }
+
+    let type: String?
+    let response: ResponsesEnvelope?
+    let error: ProviderError?
 }

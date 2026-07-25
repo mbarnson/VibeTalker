@@ -72,12 +72,16 @@ nonisolated struct PiRPCEvent: Decodable, Equatable, Sendable {
 
 nonisolated enum PiRPCCommand: Encodable, Sendable {
     case getState(id: String)
+    case setModel(id: String, provider: String, modelID: String)
     case prompt(id: String, message: String)
     case abort(id: String)
 
     var id: String {
         switch self {
-        case .getState(let id), .prompt(let id, _), .abort(let id):
+        case .getState(let id),
+             .setModel(let id, _, _),
+             .prompt(let id, _),
+             .abort(let id):
             id
         }
     }
@@ -88,6 +92,11 @@ nonisolated enum PiRPCCommand: Encodable, Sendable {
         case .getState(let id):
             try container.encode(id, forKey: .id)
             try container.encode("get_state", forKey: .type)
+        case .setModel(let id, let provider, let modelID):
+            try container.encode(id, forKey: .id)
+            try container.encode("set_model", forKey: .type)
+            try container.encode(provider, forKey: .provider)
+            try container.encode(modelID, forKey: .modelID)
         case .prompt(let id, let message):
             try container.encode(id, forKey: .id)
             try container.encode("prompt", forKey: .type)
@@ -102,5 +111,7 @@ nonisolated enum PiRPCCommand: Encodable, Sendable {
         case id
         case type
         case message
+        case provider
+        case modelID = "modelId"
     }
 }

@@ -160,6 +160,38 @@ variables, and launches the already-built product. The UI labels this source
 `Development environment`. This path creates no Keychain item and therefore
 causes no authorization prompts during iterative debug builds.
 
+## Compatible provider configuration
+
+The main Pi surface exposes explicit `OpenAI-compatible` and
+`Responses-compatible` choices alongside the built-in providers. Both show a
+base URL and model ID instead of assuming that every compatible server exposes
+the same catalog. VibeTalker writes pi's `models.json` with the selected
+`openai-completions` or `openai-responses` API identifier and a literal
+`$OMLX_API_KEY` environment reference. The actual credential remains in the
+app process/child environment and is never serialized into that file.
+
+The signed app was launched with only `OMLX_API_KEY` supplied by the
+development credential boundary. Computer Use selected
+`Responses-compatible`, retained the default
+`http://127.0.0.1:8000/v1` base URL, entered a synthetic model ID, ran Gate 0,
+and started pi. VibeTalker generated the custom provider, issued pi's pinned
+`set_model` RPC shape, and reached `RPC connected` without contacting the
+model. The first acceptance run exposed a `modelID` versus `modelId` wire-key
+mistake; the corrected key is fixed by a JSON-shape regression test.
+
+Current oMLX main at
+`4177294074b6d0394693760839eb8e0e367d4feb` registers
+`POST /v1/responses`, streams Responses events over SSE, and persists
+`previous_response_id` state. It does not register a WebSocket route or accept
+`response.create` client events. OpenAI Responses WebSocket mode therefore
+cannot be claimed for the local oMLX endpoint at this source revision. Pi's
+pinned generic `openai-responses` implementation also uses HTTP/SSE; its
+WebSocket transport is specific to the `openai-codex-responses` provider.
+VibeTalker's native Interactor now requests that SSE stream and accepts output
+only from a typed `response.completed` event; `response.failed`, `error`, and
+premature stream termination are explicit failures rather than full-body or
+protocol fallbacks.
+
 ## Signed native-app checkpoint
 
 After compilation, `npm prune --omit=dev` reduces the pinned checkout to the

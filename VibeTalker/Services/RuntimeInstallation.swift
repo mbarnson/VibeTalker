@@ -158,7 +158,8 @@ nonisolated struct RuntimeInstallation: Sendable {
 
     func piLaunchSpec(
         nodeURL: URL,
-        credential: CodingProviderCredential? = nil
+        credential: CodingProviderCredential? = nil,
+        customProvider: PiCustomProviderConfiguration? = nil
     ) throws -> RuntimeProcessSpec {
         let failures = piDiagnostics(nodeURL: nodeURL).filter { !$0.available }
         guard failures.isEmpty else {
@@ -168,6 +169,9 @@ nonisolated struct RuntimeInstallation: Sendable {
             at: sandboxWorkspaceURL,
             withIntermediateDirectories: true
         )
+        if let customProvider {
+            try writePiCustomProvider(customProvider)
+        }
 
         var environment = [
             "HOME": rootURL.path,
@@ -197,6 +201,49 @@ nonisolated struct RuntimeInstallation: Sendable {
             ],
             workingDirectoryURL: sandboxWorkspaceURL,
             environment: environment
+        )
+    }
+
+    private func writePiCustomProvider(
+        _ configuration: PiCustomProviderConfiguration
+    ) throws {
+        let configurationDirectory = rootURL
+            .appending(path: "PiConfig", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(
+            at: configurationDirectory,
+            withIntermediateDirectories: true
+        )
+        let payload: [String: Any] = [
+            "providers": [
+                PiCustomProviderConfiguration.providerID: [
+                    "name": "VibeTalker oMLX",
+                    "baseUrl": configuration.baseURL.absoluteString,
+                    "apiKey": "$\(configuration.environmentKey)",
+                    "api": configuration.api,
+                    "models": [[
+                        "id": configuration.modelID,
+                        "name": configuration.modelID,
+                        "reasoning": true,
+                        "input": ["text"],
+                        "cost": [
+                            "input": 0,
+                            "output": 0,
+                            "cacheRead": 0,
+                            "cacheWrite": 0
+                        ],
+                        "contextWindow": 128_000,
+                        "maxTokens": 16_384
+                    ]]
+                ]
+            ]
+        ]
+        let data = try JSONSerialization.data(
+            withJSONObject: payload,
+            options: [.prettyPrinted, .sortedKeys]
+        )
+        try data.write(
+            to: configurationDirectory.appending(path: "models.json"),
+            options: .atomic
         )
     }
 
@@ -232,11 +279,14 @@ nonisolated struct RuntimeArtifactDiagnostic: Identifiable, Sendable {
 
 nonisolated enum RuntimeInstallationError: LocalizedError, Equatable {
     case missingArtifacts([String])
+    case invalidCustomProvider
 
     var errorDescription: String? {
         switch self {
         case .missingArtifacts(let labels):
             "Managed runtime is incomplete: \(labels.joined(separator: ", "))"
+        case .invalidCustomProvider:
+            "A valid HTTP(S) endpoint and model ID are required for a compatible provider."
         }
     }
 }

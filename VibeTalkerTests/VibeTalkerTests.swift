@@ -144,6 +144,72 @@ struct VibeTalkerTests {
         #expect(authenticatedSpec.environment["ANTHROPIC_API_KEY"] == "fixture-only")
         #expect(authenticatedSpec.environment["OPENAI_API_KEY"] == nil)
         #expect(authenticatedSpec.environment["OPENROUTER_API_KEY"] == nil)
+        #expect(authenticatedSpec.environment["OMLX_API_KEY"] == nil)
+    }
+
+    @Test func piLaunchConfiguresCompatibleProviderWithoutPersistingSecret() throws {
+        let fixture = FileManager.default.temporaryDirectory
+            .appending(path: "VibeTalker-Compatible-Fixture-\(UUID().uuidString)")
+        let managedRoot = fixture.appending(path: "managed")
+        let bundledRoot = fixture.appending(path: "bundled")
+        let piRoot = bundledRoot.appending(path: "pi")
+        let rpcEntry = piRoot.appending(path: "packages/coding-agent/dist/rpc-entry.js")
+        let policy = piRoot.appending(path: "vibetalker-tool-policy.ts")
+        defer { try? FileManager.default.removeItem(at: fixture) }
+
+        try FileManager.default.createDirectory(
+            at: rpcEntry.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data().write(to: rpcEntry)
+        try Data().write(to: policy)
+
+        let installation = RuntimeInstallation(
+            rootURL: managedRoot,
+            bundledRuntimeRootURL: bundledRoot
+        )
+        let configuration = try #require(PiCustomProviderConfiguration(
+            provider: .responsesCompatible,
+            baseURL: "http://127.0.0.1:8000/v1",
+            modelID: "fixture-model"
+        ))
+        let spec = try installation.piLaunchSpec(
+            nodeURL: URL(fileURLWithPath: "/bin/sh"),
+            credential: CodingProviderCredential(
+                provider: .responsesCompatible,
+                value: "fixture-secret"
+            ),
+            customProvider: configuration
+        )
+
+        #expect(spec.environment["OMLX_API_KEY"] == "fixture-secret")
+        #expect(spec.environment["OPENAI_API_KEY"] == nil)
+
+        let modelsURL = managedRoot.appending(path: "PiConfig/models.json")
+        let modelsText = try String(contentsOf: modelsURL, encoding: .utf8)
+        #expect(modelsText.contains(#""api" : "openai-responses""#))
+        #expect(modelsText.contains(#""apiKey" : "$OMLX_API_KEY""#))
+        #expect(modelsText.contains(#""id" : "fixture-model""#))
+        #expect(!modelsText.contains("fixture-secret"))
+    }
+
+    @Test func piSetModelCommandUsesPinnedRPCShape() throws {
+        let command = PiRPCCommand.setModel(
+            id: "set-model-1",
+            provider: PiCustomProviderConfiguration.providerID,
+            modelID: "fixture-model"
+        )
+        let data = try JSONEncoder().encode(command)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: String]
+        )
+
+        #expect(object == [
+            "id": "set-model-1",
+            "type": "set_model",
+            "provider": "vibetalker-omlx",
+            "modelId": "fixture-model"
+        ])
     }
 
     @Test func interactionValidatorRejectsStaleAndPartialOutput() throws {
@@ -197,6 +263,33 @@ struct VibeTalkerTests {
 
         #expect(result.referenceResponse == "The request concerns the selected project.")
         #expect(result.piRequest?.instruction == "Update README and verify the diff.")
+    }
+
+    @Test func responsesSSEDecoderRequiresTypedCompletion() throws {
+        var decoder = ResponsesSSEDecoder()
+        #expect(try decoder.consume("event: response.output_text.delta") == nil)
+        #expect(try decoder.consume(
+            #"data: {"type":"response.output_text.delta","delta":"partial"}"#
+        ) == nil)
+        #expect(try decoder.consume("") == nil)
+
+        let completed = try decoder.consume(
+            #"data: {"type":"response.completed","response":{"id":"resp_fixture","output":[{"content":[{"type":"output_text","text":"{\"utterance_id\":\"00000000-0000-0000-0000-000000000001\"}"}]}]}}"#
+        )
+        #expect(completed == ProviderResult(
+            responseID: "resp_fixture",
+            structuredText:
+                #"{"utterance_id":"00000000-0000-0000-0000-000000000001"}"#
+        ))
+    }
+
+    @Test func responsesSSEDecoderSurfacesProviderFailure() throws {
+        var decoder = ResponsesSSEDecoder()
+        #expect(throws: InteractorError.self) {
+            try decoder.consume(
+                #"data: {"type":"response.failed","response":{"id":"resp_bad","error":{"message":"model unavailable"}}}"#
+            )
+        }
     }
 
     @Test func processCoordinatorWritesAndReassemblesJSONLines() async throws {

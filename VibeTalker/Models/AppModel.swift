@@ -27,6 +27,8 @@ final class AppModel {
     var codingCredentialConfigured = false
     var codingCredentialSource = "Credential required"
     var codingCredentialStoredInKeychain = false
+    var codingBaseURL = "http://127.0.0.1:8000/v1"
+    var codingModelID = ""
 
     private let ledger = EventLedger()
     private let preflight: NativePreflight
@@ -163,6 +165,19 @@ final class AppModel {
         Task { [weak self] in
             guard let self else { return }
             do {
+                let customProvider: PiCustomProviderConfiguration?
+                if codingProvider.customPiAPI != nil {
+                    guard let configuration = PiCustomProviderConfiguration(
+                        provider: codingProvider,
+                        baseURL: codingBaseURL,
+                        modelID: codingModelID
+                    ) else {
+                        throw RuntimeInstallationError.invalidCustomProvider
+                    }
+                    customProvider = configuration
+                } else {
+                    customProvider = nil
+                }
                 let credential: CodingProviderCredential?
                 if let value = ProcessInfo.processInfo.environment[
                     codingProvider.environmentKey
@@ -173,9 +188,17 @@ final class AppModel {
                 }
                 let spec = try runtimeInstallation.piLaunchSpec(
                     nodeURL: nodeHelperURL,
-                    credential: credential
+                    credential: credential,
+                    customProvider: customProvider
                 )
                 try await piClient.start(spec: spec, events: eventSink)
+                if let customProvider {
+                    _ = try await piClient.request(.setModel(
+                        id: UUID().uuidString,
+                        provider: PiCustomProviderConfiguration.providerID,
+                        modelID: customProvider.modelID
+                    ))
+                }
                 let requestID = UUID().uuidString
                 let response = try await piClient.request(.getState(id: requestID))
                 guard response.success == true else {

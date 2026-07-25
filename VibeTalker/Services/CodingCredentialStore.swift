@@ -5,6 +5,8 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
     case anthropic
     case openAI
     case openRouter
+    case openAICompatible
+    case responsesCompatible
 
     var id: String { rawValue }
 
@@ -13,6 +15,8 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
         case .anthropic: "Anthropic"
         case .openAI: "OpenAI"
         case .openRouter: "OpenRouter"
+        case .openAICompatible: "OpenAI-compatible"
+        case .responsesCompatible: "Responses-compatible"
         }
     }
 
@@ -21,6 +25,7 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
         case .anthropic: "ANTHROPIC_API_KEY"
         case .openAI: "OPENAI_API_KEY"
         case .openRouter: "OPENROUTER_API_KEY"
+        case .openAICompatible, .responsesCompatible: "OMLX_API_KEY"
         }
     }
 
@@ -29,6 +34,16 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
         case .anthropic: "anthropic"
         case .openAI: "openai"
         case .openRouter: "openrouter"
+        case .openAICompatible: "omlx-openai-compatible"
+        case .responsesCompatible: "omlx-responses-compatible"
+        }
+    }
+
+    var customPiAPI: String? {
+        switch self {
+        case .openAICompatible: "openai-completions"
+        case .responsesCompatible: "openai-responses"
+        case .anthropic, .openAI, .openRouter: nil
         }
     }
 }
@@ -36,6 +51,35 @@ nonisolated enum CodingProvider: String, CaseIterable, Identifiable, Sendable {
 nonisolated struct CodingProviderCredential: Sendable {
     let provider: CodingProvider
     let value: String
+}
+
+nonisolated struct PiCustomProviderConfiguration: Equatable, Sendable {
+    static let providerID = "vibetalker-omlx"
+
+    let api: String
+    let baseURL: URL
+    let modelID: String
+    let environmentKey: String
+
+    init?(
+        provider: CodingProvider,
+        baseURL: String,
+        modelID: String
+    ) {
+        guard let api = provider.customPiAPI,
+              let url = URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
+            return nil
+        }
+        let normalizedModel = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedModel.isEmpty else { return nil }
+
+        self.api = api
+        self.baseURL = url
+        self.modelID = normalizedModel
+        self.environmentKey = provider.environmentKey
+    }
 }
 
 nonisolated enum CodingCredentialError: LocalizedError {

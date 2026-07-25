@@ -134,6 +134,20 @@ struct ContentView: View {
                             model.codingCredentialConfigured ? .green : .secondary
                         )
                     }
+                    if model.codingProvider.customPiAPI != nil {
+                        TextField(
+                            "Base URL (for example http://127.0.0.1:8000/v1)",
+                            text: Bindable(model).codingBaseURL
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("coding-base-url")
+                        TextField(
+                            "Model ID served by the compatible endpoint",
+                            text: Bindable(model).codingModelID
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("coding-model-id")
+                    }
                     HStack {
                         SecureField(
                             "\(model.codingProvider.displayName) API key",

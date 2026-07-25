@@ -9,8 +9,9 @@ case "$provider" in
     anthropic) environment_key="ANTHROPIC_API_KEY" ;;
     openai) environment_key="OPENAI_API_KEY" ;;
     openrouter) environment_key="OPENROUTER_API_KEY" ;;
+    openai-compatible|responses-compatible) environment_key="OMLX_API_KEY" ;;
     *)
-        echo "error: provider must be anthropic, openai, or openrouter" >&2
+        echo "error: provider must be anthropic, openai, openrouter, openai-compatible, or responses-compatible" >&2
         exit 2
         ;;
 esac
@@ -56,7 +57,7 @@ if [[ ! -x "$app_binary" ]]; then
     exit 1
 fi
 
-unset ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY
+unset ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OMLX_API_KEY
 export "${environment_key}=${credential}"
 unset credential
 exec "$app_binary"
