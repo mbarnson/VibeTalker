@@ -1,7 +1,7 @@
 # Gate 4: fast Interactor baseline
 
-Status: **frozen 100-turn oMLX Responses corpus passed; native endpointing and
-Moshi-injection overhead measurement pending**
+Status: **passed — frozen 100-turn oMLX Responses corpus, native non-model path,
+and Interaction-miss language comparison completed**
 
 ## Current checkpoint
 
@@ -83,12 +83,63 @@ The executed unit target also includes a real URLSession request across the
 loopback boundary and focused policy, expiry, confirmation, and failure
 fixtures.
 
-## Remaining Gate 4 work
+## Native non-model overhead
 
-- Publish measured native endpointing, Coordinator, validation, and
-  Moshi-injection overhead plus the remaining model allowances.
-- Compare the frozen neutral and heuristic-gated Interaction-miss corpus and
-  record whether the current heuristic wording remains the release choice.
+`scripts/run-gate4-native-overhead.swift` compiles against the production
+Interactor, Coordinator, policy, Moshi bridge, and Reference HTTP client. A
+custom in-process `URLProtocol` replaces only model computation with a valid
+typed Responses SSE event and returns a 204 from the Reference endpoint. The
+100-turn result retained at
+`Fixtures/Gate4/results/native-overhead-summary.json` is:
+
+- 0.000249-second median;
+- 0.000294-second p95; and
+- 0.000426-second maximum.
+
+This measures native Responses request construction and URLSession transport,
+SSE and structured-output decoding, local utterance binding, deterministic
+intent reconciliation, Interaction validation, Coordinator policy, the Moshi
+Reference bridge, and Reference HTTP encoding and transport. It does **not**
+measure speech endpointing, real loopback socket scheduling, model inference,
+or Moshi's audio rendering. Those remaining endpoints must be measured in the
+signed-app voice test and are not silently attributed to the model.
+
+Subtracting the native result from the product SLOs leaves these operational
+model-and-unmeasured-audio allowances:
+
+- all-turn Reference p95: 1.999706 seconds;
+- committed dispatch acknowledgement median: 1.499751 seconds;
+- committed dispatch acknowledgement p95: 2.499706 seconds; and
+- first-audible status p95: 1.999706 seconds.
+
+As the PRD notes, subtracting independent percentiles is a working budget for
+Gate 6, not a claim that the distributions compose exactly.
+
+## Interaction-miss language
+
+The frozen corpus at `Fixtures/Gate4/interaction-miss-corpus.json` contains ten
+ordinary questions and ten direct action requests. Ordinary turns deliberately
+use words such as “fix,” “test,” “build,” and “change” in informational
+questions so a bag-of-words heuristic cannot pass by construction.
+
+`scripts/run-gate4-miss-policy.swift` compares the always-neutral wording with
+the production deterministic heuristic. The retained result at
+`Fixtures/Gate4/results/interaction-miss-policy-summary.json` is:
+
+- heuristic-gated: explicit non-dispatch clarity on 10/10 action turns and
+  0/10 ordinary turns;
+- always-neutral: explicit non-dispatch clarity on 0/10 action turns and
+  0/10 ordinary turns; and
+- 20/20 production classifications match the frozen expectation.
+
+The first heuristic revision matched an action verb anywhere in the
+transcript. The comparison rejected that design because ordinary questions
+such as “How do I fix a parser?” would receive the disruptive “no work was
+started” clause. The release policy recognizes only direct imperatives and
+common polite request openings. Gate 4 therefore freezes the heuristic-gated
+variant: ordinary misses remain conversational, while likely action misses
+state explicitly that no work began. The heuristic still affects wording only
+and has no dispatch authority.
 
 ## Frozen Responses corpus
 

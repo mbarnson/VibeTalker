@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "turns": [
+    {"category":"ordinary","transcript":"Why is the sky blue?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"How do I fix a parser?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"What makes a test useful?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"Tell me how birds build nests.","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"Does Swift remove unused values?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"Explain why teams refactor code.","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"When did people start writing software?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"Is it safe to run after lunch?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"What would change if the cache were disabled?","expects_explicit_non_dispatch":false},
+    {"category":"ordinary","transcript":"How can I create a better habit?","expects_explicit_non_dispatch":false},
+    {"category":"action","transcript":"Fix the parser crash.","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Please add a regression test.","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Could you update the README?","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Can you rename the fixture?","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Would you refactor the cache layer?","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Will you run the test suite?","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Create a status endpoint.","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Delete the obsolete helper.","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Write the migration note.","expects_explicit_non_dispatch":true},
+    {"category":"action","transcript":"Cancel the current job.","expects_explicit_non_dispatch":true}
+  ]
+}

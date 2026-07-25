@@ -1,0 +1,9 @@
+{
+  "expected_classification_matches" : 20,
+  "heuristic_action_clarity" : 10,
+  "heuristic_ordinary_explicit_non_dispatch" : 0,
+  "neutral_action_clarity" : 0,
+  "neutral_ordinary_explicit_non_dispatch" : 0,
+  "schema_version" : 1,
+  "turn_count" : 20
+}

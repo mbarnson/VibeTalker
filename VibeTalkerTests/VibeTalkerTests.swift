@@ -643,6 +643,10 @@ struct VibeTalkerTests {
                 == "I couldn't verify that request, so no work was started."
         )
         #expect(
+            InteractionMissPolicy.reference(for: "How do I fix a parser?")
+                == "I couldn't retrieve that context just now."
+        )
+        #expect(
             InteractionMissPolicy.reference(for: "Why is the sky blue?")
                 == "I couldn't retrieve that context just now."
         )

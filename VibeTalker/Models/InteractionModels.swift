@@ -213,18 +213,23 @@ actor PiRequestPolicy {
 
 nonisolated enum InteractionMissPolicy {
     static func reference(for transcript: String) -> String {
-        let words = Set(
-            transcript
-                .lowercased()
-                .split(whereSeparator: { !$0.isLetter })
-                .map(String.init)
-        )
+        let normalized = transcript
+            .lowercased()
+            .split(whereSeparator: { !$0.isLetter })
+            .joined(separator: " ")
         let actionWords: Set<String> = [
             "add", "build", "change", "create", "delete", "edit", "fix",
             "implement", "refactor", "remove", "rename", "run", "test", "update",
-            "write"
+            "write", "stop", "cancel", "abort"
         ]
-        if !words.isDisjoint(with: actionWords) {
+        let words = normalized.split(separator: " ").map(String.init)
+        let firstWord = words.first
+        let politeLead = ["please", "can you", "could you", "would you", "will you"]
+        let isLikelyAction = actionWords.contains(firstWord ?? "")
+            || politeLead.contains { lead in
+                actionWords.contains { normalized.hasPrefix("\(lead) \($0) ") }
+            }
+        if isLikelyAction {
             return "I couldn't verify that request, so no work was started."
         }
         return "I couldn't retrieve that context just now."

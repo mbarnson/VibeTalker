@@ -1,0 +1,18 @@
+{
+  "maximum_seconds" : 0.0004255,
+  "measured_path" : [
+    "Responses URLSession transport",
+    "SSE decoding",
+    "structured-output decoding",
+    "local utterance binding",
+    "intent reconciliation",
+    "Interaction validation",
+    "Coordinator policy",
+    "Moshi Reference bridge",
+    "Reference HTTP encoding and transport"
+  ],
+  "median_seconds" : 0.000249208,
+  "p95_seconds" : 0.000293667,
+  "schema_version" : 1,
+  "turn_count" : 100
+}
