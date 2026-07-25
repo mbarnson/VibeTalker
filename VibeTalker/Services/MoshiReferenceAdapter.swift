@@ -5,6 +5,7 @@ nonisolated enum MoshiReferenceAdapterError: LocalizedError, Equatable {
     case invalidRequest
     case missingTranscript
     case referenceNotDelivered
+    case moshiRejectedReference
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,41 @@ nonisolated enum MoshiReferenceAdapterError: LocalizedError, Equatable {
             "Moshi's retrieval request did not contain a committed user transcript."
         case .referenceNotDelivered:
             "The Coordinator completed without delivering the matching Reference."
+        case .moshiRejectedReference:
+            "The MLX Moshi runtime rejected the encoded Reference."
+        }
+    }
+}
+
+nonisolated protocol MoshiReferenceAccepting: Sendable {
+    func accept(_ delivery: ReferenceDelivery) async throws
+}
+
+actor MoshiReferenceHTTPClient: MoshiReferenceAccepting {
+    private struct Request: Encodable {
+        let text: String
+    }
+
+    private let endpoint: URL
+    private let session: URLSession
+
+    init(
+        endpoint: URL = URL(string: "http://127.0.0.1:8999/api/reference")!,
+        session: URLSession = .shared
+    ) {
+        self.endpoint = endpoint
+        self.session = session
+    }
+
+    func accept(_ delivery: ReferenceDelivery) async throws {
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(Request(text: delivery.text))
+        let (_, response) = try await session.data(for: request)
+        guard let HTTPResponse = response as? HTTPURLResponse,
+              (200..<300).contains(HTTPResponse.statusCode) else {
+            throw MoshiReferenceAdapterError.moshiRejectedReference
         }
     }
 }
@@ -33,6 +69,7 @@ actor MoshiReferenceBridge: ReferenceDelivering {
     private var voiceSessionID: UUID?
     private var commitHandler: CommitHandler?
     private var deliveredByUtterance: [UUID: ReferenceDelivery] = [:]
+    private var deliverySink: @Sendable (ReferenceDelivery) async throws -> Void = { _ in }
 
     init(events: @escaping EventSink = { _, _ in }) {
         self.events = events
@@ -40,6 +77,12 @@ actor MoshiReferenceBridge: ReferenceDelivering {
 
     func setEventSink(_ events: @escaping EventSink) {
         self.events = events
+    }
+
+    func setDeliverySink(
+        _ deliverySink: @escaping @Sendable (ReferenceDelivery) async throws -> Void
+    ) {
+        self.deliverySink = deliverySink
     }
 
     func beginSession(
@@ -61,6 +104,7 @@ actor MoshiReferenceBridge: ReferenceDelivering {
         guard delivery.voiceSessionID == voiceSessionID else {
             throw MoshiReferenceAdapterError.inactiveSession
         }
+        try await deliverySink(delivery)
         deliveredByUtterance[delivery.utteranceID] = delivery
         await events(.reference, "Reference: \(delivery.text)")
     }

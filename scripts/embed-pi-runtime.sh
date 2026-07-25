@@ -47,3 +47,5 @@ done
 /bin/cp "$source_root/vibetalker-tool-manifest.json" \
     "$runtime_root/vibetalker-tool-manifest.json"
 /usr/bin/touch "$runtime_root/.vibetalker-pi-$expected_revision"
+
+source "$SRCROOT/scripts/embed-voice-runtime.sh"

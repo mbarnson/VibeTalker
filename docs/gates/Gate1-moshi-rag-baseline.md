@@ -255,9 +255,42 @@ The native host now implements and tests the loopback
 `POST /v1/chat/completions` Coordinator boundary expected by the pinned
 Moshi-RAG retrieval manager. The managed MLX process receives that adapter
 location through its minimal child environment. This closes the host-side
-Reference transport seam only: the current `moshi_mlx.local_web` invocation
-still needs the packaged local ASR path and the ARC streaming-sum injection
-described above.
+Reference transport seam.
+
+### Packaged dynamic ARC checkpoint
+
+The native app now packages executable code and mutable model data on separate
+trust boundaries:
+
+- Python 3.12 and both pinned source packages are embedded in the signed app.
+- A dedicated `Contents/Helpers/vibetalker-python` executable inherits the app
+  sandbox and hardened-runtime policy.
+- Models, tokenizers, and generated configuration are imported by the app into
+  its managed Application Support container.
+- Generated conditioner paths are relative to the managed runtime root; no
+  developer checkout paths survive the source build.
+
+MLX's three cross-process queues were replaced by one-way
+`multiprocessing.Pipe` connections because `multiprocessing.Queue` requires a
+POSIX semaphore that App Sandbox denies. Thread-local audio queues remain
+unchanged. The `--static none` launch flag also prevents the upstream web
+runtime from attempting to download an optional browser client.
+
+The acceptance build completed Xcode signing and launched both services from
+the signed helper:
+
+- ARC/PyTorch on MPS listened at `127.0.0.1:8001`.
+- MLX Moshi-RAG loaded and warmed the BF16 checkpoint, then listened at
+  `127.0.0.1:8999`.
+- A live `POST /api/reference` with the cobalt verification fact returned
+  `{"accepted": true, "frames": 2}`.
+
+The Swift Coordinator bridge now delivers each accepted, coalesced retrieval
+result to that endpoint. MLX consumes the latest tensor and applies one BF16
+ARC frame per inference step.
+
+This closes packaging and dynamic ARC injection. Gate 1 remains open only for
+the separate local streaming ASR path required by the selected MLX topology.
 
 The original Rust/Candle gate remains a recorded failure. The subsequent
 investigation selected the second architecture revision: retain the ARC

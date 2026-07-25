@@ -135,8 +135,14 @@ def main() -> None:
     conditioner = config["conditioners"]["reference_with_time"][
         "multi_arc_encoder"
     ]
-    conditioner["model_path"] = str(arc_destination)
-    conditioner["tokenizer_name"] = str(tokenizer_destination)
+    # Keep the generated runtime relocatable. The app launches the conditioner
+    # with the managed runtime root as its working directory.
+    conditioner["model_path"] = str(
+        arc_destination.relative_to(runtime_root)
+    )
+    conditioner["tokenizer_name"] = str(
+        tokenizer_destination.relative_to(runtime_root)
+    )
     conditioner.pop("hf_repo", None)
     conditioner.pop("hf_revision", None)
     conditioner.pop("tokenizer_revision", None)

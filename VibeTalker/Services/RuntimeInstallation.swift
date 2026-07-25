@@ -3,8 +3,15 @@ import Foundation
 nonisolated struct RuntimeInstallation: Sendable {
     let rootURL: URL
     let bundledRuntimeRootURL: URL
+    let bundledVoiceRuntimeRootURL: URL
+    let bundledVoiceExecutableURL: URL
 
-    init(rootURL: URL? = nil, bundledRuntimeRootURL: URL? = nil) {
+    init(
+        rootURL: URL? = nil,
+        bundledRuntimeRootURL: URL? = nil,
+        bundledVoiceRuntimeRootURL: URL? = nil,
+        bundledVoiceExecutableURL: URL? = nil
+    ) {
         if let rootURL {
             self.rootURL = rootURL
         } else {
@@ -17,10 +24,13 @@ nonisolated struct RuntimeInstallation: Sendable {
                 .appending(path: "Runtime", directoryHint: .isDirectory)
         }
         self.bundledRuntimeRootURL = bundledRuntimeRootURL ?? self.rootURL
+        self.bundledVoiceRuntimeRootURL = bundledVoiceRuntimeRootURL ?? self.rootURL
+        self.bundledVoiceExecutableURL = bundledVoiceExecutableURL
+            ?? self.bundledVoiceRuntimeRootURL.appending(path: "Python/bin/python3.12")
     }
 
     var pythonURL: URL {
-        rootURL.appending(path: "Python/bin/python3.12")
+        bundledVoiceExecutableURL
     }
 
     var mlxPythonURL: URL {
@@ -32,19 +42,25 @@ nonisolated struct RuntimeInstallation: Sendable {
     }
 
     var mlxSitePackagesURL: URL {
-        rootURL.appending(path: "moshi-mlx/site-packages")
+        bundledVoiceRuntimeRootURL.appending(path: "moshi-mlx/site-packages")
     }
 
     var ragSitePackagesURL: URL {
-        rootURL.appending(path: "moshi-rag/site-packages")
+        bundledVoiceRuntimeRootURL.appending(path: "moshi-rag/site-packages")
     }
 
     var mlxWorkingDirectoryURL: URL {
-        rootURL.appending(path: "moshi-mlx", directoryHint: .isDirectory)
+        bundledVoiceRuntimeRootURL.appending(
+            path: "moshi-mlx",
+            directoryHint: .isDirectory
+        )
     }
 
     var ragWorkingDirectoryURL: URL {
-        rootURL.appending(path: "moshi-rag", directoryHint: .isDirectory)
+        bundledVoiceRuntimeRootURL.appending(
+            path: "moshi-rag",
+            directoryHint: .isDirectory
+        )
     }
 
     var modelDirectoryURL: URL {
@@ -128,7 +144,7 @@ nonisolated struct RuntimeInstallation: Sendable {
             "HF_HOME": rootURL.appending(path: "HuggingFace").path,
             "NO_PROXY": "127.0.0.1,localhost",
             "PATH": "/usr/bin:/bin",
-            "PYTHONHOME": rootURL.appending(path: "Python").path,
+            "PYTHONHOME": bundledVoiceRuntimeRootURL.appending(path: "Python").path,
             "PYTHONNOUSERSITE": "1",
             "PYTHONUNBUFFERED": "1",
             "HF_HUB_OFFLINE": "1",
@@ -154,13 +170,13 @@ nonisolated struct RuntimeInstallation: Sendable {
                 arguments: [
                     "-m", "moshi.server_conditioner",
                     "--moshi-weight", conditionerWeightURL.path,
-                    "--lm-config", ragConfigurationURL.path,
+                    "--config", ragConfigurationURL.path,
                     "--conditioner", "reference_with_time",
                     "--cuda-device", "mps",
                     "--host", "127.0.0.1",
                     "--port", "8001"
                 ],
-                workingDirectoryURL: ragWorkingDirectoryURL,
+                workingDirectoryURL: rootURL,
                 environment: conditionerEnvironment
             ),
             RuntimeProcessSpec(
@@ -175,6 +191,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--first-speaker", "user",
                     "--host", "127.0.0.1",
                     "--port", "8999",
+                    "--static", "none",
                     "--no-browser"
                 ],
                 workingDirectoryURL: mlxWorkingDirectoryURL,
@@ -357,9 +374,6 @@ nonisolated struct VoiceRuntimeImporter: Sendable {
     static let ragRevision = "8c6dfc101b7871baa428424bcdc583b74fb561d9"
 
     private let components = [
-        "Python",
-        "moshi-mlx",
-        "moshi-rag",
         "Models",
         "moshi-rag-mlx-config.json",
         "moshi-rag-config.json",
@@ -379,7 +393,12 @@ nonisolated struct VoiceRuntimeImporter: Sendable {
             throw VoiceRuntimeImporterError.sourceMatchesDestination
         }
 
-        try validate(source, fileManager: fileManager)
+        try validate(
+            source,
+            codeRootURL: installation.bundledVoiceRuntimeRootURL,
+            codeExecutableURL: installation.bundledVoiceExecutableURL,
+            fileManager: fileManager
+        )
         try fileManager.createDirectory(
             at: destination,
             withIntermediateDirectories: true
@@ -406,7 +425,12 @@ nonisolated struct VoiceRuntimeImporter: Sendable {
                     to: staging.appending(path: component)
                 )
             }
-            try validate(staging, fileManager: fileManager)
+            try validate(
+                staging,
+                codeRootURL: installation.bundledVoiceRuntimeRootURL,
+                codeExecutableURL: installation.bundledVoiceExecutableURL,
+                fileManager: fileManager
+            )
 
             for component in components {
                 let current = destination.appending(path: component)
@@ -445,6 +469,8 @@ nonisolated struct VoiceRuntimeImporter: Sendable {
 
     private func validate(
         _ rootURL: URL,
+        codeRootURL: URL,
+        codeExecutableURL: URL,
         fileManager: FileManager
     ) throws {
         let markerURL = rootURL.appending(path: ".vibetalker-voice-runtime")
@@ -455,7 +481,11 @@ nonisolated struct VoiceRuntimeImporter: Sendable {
               marker.contains("moshi-rag=\(Self.ragRevision)") else {
             throw VoiceRuntimeImporterError.revisionMismatch
         }
-        let missing = RuntimeInstallation(rootURL: rootURL)
+        let missing = RuntimeInstallation(
+            rootURL: rootURL,
+            bundledVoiceRuntimeRootURL: codeRootURL,
+            bundledVoiceExecutableURL: codeExecutableURL
+        )
             .diagnostics(fileManager: fileManager)
             .filter { !$0.available }
             .map(\.label)

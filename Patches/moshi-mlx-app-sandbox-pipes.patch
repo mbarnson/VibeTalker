@@ -1,0 +1,166 @@
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -17,6 +17,9 @@
+ from enum import Enum
+ import typing as tp
+ import sphn
++import mimetypes
++
++mimetypes.knownfiles = []
+ import aiohttp
+ from aiohttp import web
+ import webbrowser
+@@ -87,11 +89,11 @@
+             data = audio_tokenizer.get_encoded()
+             if data is not None:
+                 break
+-        client_to_server.put_nowait(data)
++        client_to_server.send(data)
+         if i < max_delay:
+             continue
+         while True:
+-            kind, data = server_to_client.get()
++            kind, data = server_to_client.recv()
+             if kind == 0:
+                 audio_tokenizer.decode(data)
+                 break
+@@ -191,25 +193,22 @@
+     reference_frames = None
+     reference_frame_index = 0
+ 
+-    server_to_client.put("start")
++    server_to_client.send("start")
+     log("info", "[SERVER] connected!")
+     try:
+         while True:
+-            data = client_to_server.get()
++            data = client_to_server.recv()
+             data = mx.array(data).transpose(1, 0)[:, : gen.main_codebooks]
+-            try:
+-                while True:
+-                    reference_frames = mx.array(
+-                        reference_to_model.get_nowait()
+-                    ).astype(mx.bfloat16)
+-                    reference_frame_index = 0
+-                    log(
+-                        "info",
+-                        "[SERVER] queued "
+-                        f"{reference_frames.shape[0]} ARC reference frames",
+-                    )
+-            except queue.Empty:
+-                pass
++            while reference_to_model.poll():
++                reference_frames = mx.array(
++                    reference_to_model.recv()
++                ).astype(mx.bfloat16)
++                reference_frame_index = 0
++                log(
++                    "info",
++                    "[SERVER] queued "
++                    f"{reference_frames.shape[0]} ARC reference frames",
++                )
+ 
+             step_condition = ct
+             if (
+@@ -228,10 +227,10 @@
+             if text_token not in (0, 3):
+                 _text = text_tokenizer.id_to_piece(text_token)  # type: ignore
+                 _text = _text.replace("▁", " ")
+-                server_to_client.put_nowait((1, _text))
++                server_to_client.send((1, _text))
+             if audio_tokens is not None:
+                 audio_tokens = np.array(audio_tokens).astype(np.uint32)
+-                server_to_client.put_nowait((0, audio_tokens))
++                server_to_client.send((0, audio_tokens))
+     except KeyboardInterrupt:
+         pass
+ 
+@@ -262,7 +261,7 @@
+         nc = lm_config.depformer.num_slices
+         max_delay = max(lm_config.audio_delays)
+     audio_tokenizer = rustymimi.StreamTokenizer(mimi_file, num_codebooks=nc)  # type: ignore
+-    start = server_to_client.get()
++    start = server_to_client.recv()
+     log("info", f"[CLIENT] received '{start}' from server, starting...")
+ 
+     full_warmup(audio_tokenizer, client_to_server, server_to_client, max_delay)
+@@ -290,19 +289,18 @@
+             if data is None:
+                 await asyncio.sleep(0.001)
+                 continue
+-            client_to_server.put_nowait(data)
++            client_to_server.send(data)
+ 
+     async def recv_loop2():
+         while True:
+-            try:
+-                kind, data = server_to_client.get(block=False)
++            if server_to_client.poll():
++                kind, data = server_to_client.recv()
+                 if kind == 0:
+                     audio_tokenizer.decode(data)
+                 elif kind == 1:
+                     text_queue.put_nowait(data)
+-            except queue.Empty:
++            else:
+                 await asyncio.sleep(0.001)
+-                continue
+ 
+     lock = asyncio.Lock()
+ 
+@@ -415,12 +413,7 @@
+         ):
+             raise web.HTTPBadGateway(reason="ARC returned an invalid tensor")
+ 
+-        try:
+-            while True:
+-                reference_to_model.get_nowait()
+-        except queue.Empty:
+-            pass
+-        reference_to_model.put_nowait(tensor[0])
++        reference_to_model.send(tensor[0])
+         log("info", f"accepted {tensor.shape[1]} ARC reference frames")
+         return web.json_response({"accepted": True, "frames": tensor.shape[1]})
+ 
+@@ -520,9 +513,9 @@
+             print(f"Invalid value for quantized {args.quantized}")
+             sys.exit(1)
+ 
+-    client_to_server = multiprocessing.Queue()
+-    server_to_client = multiprocessing.Queue()
+-    reference_to_model = multiprocessing.Queue()
++    client_receiver, client_sender = multiprocessing.Pipe(duplex=False)
++    server_receiver, server_sender = multiprocessing.Pipe(duplex=False)
++    reference_receiver, reference_sender = multiprocessing.Pipe(duplex=False)
+ 
+     # Get the model config
+     lm_config = args.lm_config
+@@ -538,15 +531,22 @@
+             lm_config = json.load(fobj)
+ 
+     # Create two processes
+-    subprocess_args = (
+-        client_to_server,
+-        server_to_client,
+-        reference_to_model,
++    web_server_args = (
++        client_sender,
++        server_receiver,
++        reference_sender,
+         lm_config,
+         args,
+     )
+-    p1 = multiprocessing.Process(target=web_server, args=subprocess_args)
+-    p2 = multiprocessing.Process(target=model_server, args=subprocess_args)
++    model_server_args = (
++        client_receiver,
++        server_sender,
++        reference_receiver,
++        lm_config,
++        args,
++    )
++    p1 = multiprocessing.Process(target=web_server, args=web_server_args)
++    p2 = multiprocessing.Process(target=model_server, args=model_server_args)
+ 
+     # Start the processes
+     p1.start()

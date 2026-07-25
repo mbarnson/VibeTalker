@@ -44,6 +44,7 @@ final class AppModel {
     private let referenceBridge: MoshiReferenceBridge
     private let referenceAdapter: MoshiChatCompletionsAdapter
     private let referenceServer: LoopbackReferenceServer
+    private let moshiReferenceClient: any MoshiReferenceAccepting
     private let nodeHelperURL: URL
     private let credentialStore: CodingCredentialStore
     private let voiceRuntimeImporter: VoiceRuntimeImporter
@@ -57,11 +58,16 @@ final class AppModel {
         runtimeInstallation: RuntimeInstallation? = nil,
         credentialStore: CodingCredentialStore = CodingCredentialStore(),
         voiceRuntimeImporter: VoiceRuntimeImporter = VoiceRuntimeImporter(),
+        moshiReferenceClient: any MoshiReferenceAccepting = MoshiReferenceHTTPClient(),
         nodeHelperURL: URL? = nil
     ) {
         let resolvedInstallation = runtimeInstallation ?? RuntimeInstallation(
             bundledRuntimeRootURL: Bundle.main.resourceURL?
-                .appending(path: "Runtime", directoryHint: .isDirectory)
+                .appending(path: "Runtime", directoryHint: .isDirectory),
+            bundledVoiceRuntimeRootURL: Bundle.main.bundleURL
+                .appending(path: "Contents/Resources/voice-runtime"),
+            bundledVoiceExecutableURL: Bundle.main.bundleURL
+                .appending(path: "Contents/Helpers/vibetalker-python")
         )
         self.preflight = preflight
         self.processCoordinator = processCoordinator
@@ -76,6 +82,7 @@ final class AppModel {
         let referenceAdapter = MoshiChatCompletionsAdapter(bridge: referenceBridge)
         self.referenceAdapter = referenceAdapter
         self.referenceServer = LoopbackReferenceServer(adapter: referenceAdapter)
+        self.moshiReferenceClient = moshiReferenceClient
         self.credentialStore = credentialStore
         self.voiceRuntimeImporter = voiceRuntimeImporter
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
@@ -346,6 +353,10 @@ final class AppModel {
                 await referenceBridge.beginSession(sessionID) { utterance in
                     try await coordinator.commit(utterance)
                 }
+                let moshiReferenceClient = moshiReferenceClient
+                await referenceBridge.setDeliverySink { delivery in
+                    try await moshiReferenceClient.accept(delivery)
+                }
                 await referenceAdapter.reset()
                 let referenceBaseURL = try await referenceServer.start()
                 referenceAdapterReady = true
@@ -387,6 +398,7 @@ final class AppModel {
             await conversationCoordinator.endVoiceSession(voiceSessionID)
         }
         await referenceBridge.endSession()
+        await referenceBridge.setDeliverySink { _ in }
         await referenceAdapter.reset()
         referenceServer.stop()
         referenceAdapterReady = false

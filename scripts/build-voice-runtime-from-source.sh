@@ -60,7 +60,10 @@ prepare_checkout() {
     local repository="$1"
     local revision="$2"
     local checkout="$3"
-    local patch="$4"
+    shift 3
+    local patches=("$@")
+    local patch
+    local index
 
     if [[ ! -d "$checkout/.git" ]]; then
         mkdir -p "$(dirname "$checkout")"
@@ -76,23 +79,29 @@ prepare_checkout() {
         git -C "$checkout" checkout --detach "$revision"
     fi
 
-    if git -C "$checkout" apply --reverse --check "$patch" 2>/dev/null; then
-        return
-    fi
+    for ((index=${#patches[@]} - 1; index >= 0; index--)); do
+        patch="${patches[$index]}"
+        if git -C "$checkout" apply --reverse --check "$patch" 2>/dev/null; then
+            git -C "$checkout" apply --reverse "$patch"
+        fi
+    done
     if ! git -C "$checkout" diff --quiet ||
        ! git -C "$checkout" diff --cached --quiet; then
-        echo "error: Checkout has changes other than the tracked VibeTalker patch: $checkout"
+        echo "error: Checkout has changes other than the tracked VibeTalker patches: $checkout"
         exit 1
     fi
-    git -C "$checkout" apply --check "$patch"
-    git -C "$checkout" apply "$patch"
+    for patch in "${patches[@]}"; do
+        git -C "$checkout" apply --check "$patch"
+        git -C "$checkout" apply "$patch"
+    done
 }
 
 prepare_checkout \
     "$moshi_repository" \
     "$moshi_revision" \
     "$mlx_checkout" \
-    "$repo_root/Patches/moshi-mlx-rag-apple-silicon.patch"
+    "$repo_root/Patches/moshi-mlx-rag-apple-silicon.patch" \
+    "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch"
 prepare_checkout \
     "$rag_repository" \
     "$rag_revision" \

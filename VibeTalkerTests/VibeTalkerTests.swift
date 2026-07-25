@@ -149,6 +149,10 @@ struct VibeTalkerTests {
         #expect(conditioner.environment["PYTHONPATH"] == installation.ragSitePackagesURL.path)
         #expect(moshi.environment["HF_HUB_OFFLINE"] == "1")
         #expect(conditioner.arguments.prefix(2) == ["-m", "moshi.server_conditioner"])
+        #expect(conditioner.arguments.contains("--config"))
+        #expect(!conditioner.arguments.contains("--lm-config"))
+        let staticIndex = try #require(moshi.arguments.firstIndex(of: "--static"))
+        #expect(moshi.arguments[staticIndex + 1] == "none")
     }
 
     @Test func voiceRuntimeImporterMovesValidatedPayloadIntoManagedRoot() throws {
@@ -199,7 +203,10 @@ struct VibeTalkerTests {
         )
         try Data("stale".utf8).write(to: stale)
 
-        let destinationInstallation = RuntimeInstallation(rootURL: destination)
+        let destinationInstallation = RuntimeInstallation(
+            rootURL: destination,
+            bundledVoiceRuntimeRootURL: source
+        )
         try VoiceRuntimeImporter().importRuntime(
             from: source,
             into: destinationInstallation
@@ -551,6 +558,10 @@ struct VibeTalkerTests {
             receipt: .started(projectName: "Workspace")
         )
         let bridge = MoshiReferenceBridge()
+        let deliveredToMoshi = ReferenceCollector()
+        await bridge.setDeliverySink { delivery in
+            try await deliveredToMoshi.deliver(delivery)
+        }
         let coordinator = ConversationCoordinator(
             interactor: interactor,
             piDispatcher: dispatcher,
@@ -592,6 +603,7 @@ struct VibeTalkerTests {
         #expect(await dispatcher.requests() == [
             PiRequest(operation: .start, instruction: "Update the README.")
         ])
+        #expect(await deliveredToMoshi.deliveries().count == 1)
 
         let payload = try #require(
             JSONSerialization.jsonObject(with: firstResult.body)

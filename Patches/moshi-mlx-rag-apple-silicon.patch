@@ -1,8 +1,32 @@
 diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
-index 36efd28..d34a16a 100644
+index 36efd28..6dbcecd 100644
 --- a/moshi_mlx/moshi_mlx/local_web.py
 +++ b/moshi_mlx/moshi_mlx/local_web.py
-@@ -143,20 +143,36 @@ def model_server(client_to_server, server_to_client, lm_config, args):
+@@ -26,6 +26,8 @@ import mlx.nn as nn
+ 
+ import rustymimi
+ from moshi_mlx import models, utils
++from moshi_mlx.modules.conditioner import ConditionTensor
++from safetensors.numpy import load as load_safetensors
+ 
+ import huggingface_hub
+ 
+@@ -111,7 +113,13 @@ def hf_get(filename: str) -> str:
+         return filename
+ 
+ 
+-def model_server(client_to_server, server_to_client, lm_config, args):
++def model_server(
++    client_to_server,
++    server_to_client,
++    reference_to_model,
++    lm_config,
++    args,
++):
+     model_file = args.moshi_weight
+     tokenizer_file = args.tokenizer
+     if model_file is None:
+@@ -143,20 +151,36 @@ def model_server(client_to_server, server_to_client, lm_config, args):
      model.set_dtype(mx.bfloat16)
      if args.quantized is not None:
          group_size = 32 if args.quantized == 4 else 64
@@ -45,11 +69,153 @@ index 36efd28..d34a16a 100644
      gen = models.LmGen(
          model=model,
          max_steps=steps + 5,
-@@ -389,6 +405,7 @@ def main():
+@@ -164,6 +188,8 @@ def model_server(client_to_server, server_to_client, lm_config, args):
+         audio_sampler=utils.Sampler(),
+         check=False,
+     )
++    reference_frames = None
++    reference_frame_index = 0
+ 
+     server_to_client.put("start")
+     log("info", "[SERVER] connected!")
+@@ -171,7 +197,32 @@ def model_server(client_to_server, server_to_client, lm_config, args):
+         while True:
+             data = client_to_server.get()
+             data = mx.array(data).transpose(1, 0)[:, : gen.main_codebooks]
+-            text_token = gen.step(data, ct=ct)
++            try:
++                while True:
++                    reference_frames = mx.array(
++                        reference_to_model.get_nowait()
++                    ).astype(mx.bfloat16)
++                    reference_frame_index = 0
++                    log(
++                        "info",
++                        "[SERVER] queued "
++                        f"{reference_frames.shape[0]} ARC reference frames",
++                    )
++            except queue.Empty:
++                pass
++
++            step_condition = ct
++            if (
++                reference_frames is not None
++                and reference_frame_index < reference_frames.shape[0]
++            ):
++                step_condition = ConditionTensor(
++                    reference_frames[
++                        reference_frame_index : reference_frame_index + 1
++                    ]
++                )
++                reference_frame_index += 1
++            text_token = gen.step(data, ct=step_condition)
+             text_token = text_token[0].item()
+             audio_tokens = gen.last_audio_tokens()
+             if text_token not in (0, 3):
+@@ -185,7 +236,13 @@ def model_server(client_to_server, server_to_client, lm_config, args):
+         pass
+ 
+ 
+-def web_server(client_to_server, server_to_client, lm_config, args):
++def web_server(
++    client_to_server,
++    server_to_client,
++    reference_to_model,
++    lm_config,
++    args,
++):
+     mimi_file = args.mimi_weight
+     if mimi_file is None:
+         if type(lm_config) is dict and "mimi_name" in lm_config:
+@@ -322,9 +379,55 @@ def web_server(client_to_server, server_to_client, lm_config, args):
+         log("info", "done with connection")
+         return ws
+ 
++    async def handle_reference(request):
++        try:
++            payload = await request.json()
++        except (json.JSONDecodeError, aiohttp.ContentTypeError):
++            raise web.HTTPBadRequest(reason="expected a JSON body")
++        text = payload.get("text")
++        if not isinstance(text, str) or not text.strip():
++            raise web.HTTPBadRequest(reason="reference text is required")
++        if len(text) > 16_384:
++            raise web.HTTPRequestEntityTooLarge(
++                max_size=16_384,
++                actual_size=len(text),
++            )
++
++        try:
++            timeout = aiohttp.ClientTimeout(total=args.reference_timeout)
++            async with aiohttp.ClientSession(timeout=timeout) as session:
++                async with session.post(
++                    f"{args.reference_encoder_url.rstrip('/')}/embed",
++                    json={"text": text},
++                ) as response:
++                    response.raise_for_status()
++                    tensors = load_safetensors(await response.read())
++        except (aiohttp.ClientError, TimeoutError, ValueError) as exc:
++            log("error", f"ARC reference encoding failed: {exc}")
++            raise web.HTTPBadGateway(reason="ARC reference encoding failed")
++
++        tensor = tensors.get("tensor")
++        if (
++            tensor is None
++            or tensor.ndim != 3
++            or tensor.shape[0] != 1
++            or tensor.shape[2] != lm_config["dim"]
++        ):
++            raise web.HTTPBadGateway(reason="ARC returned an invalid tensor")
++
++        try:
++            while True:
++                reference_to_model.get_nowait()
++        except queue.Empty:
++            pass
++        reference_to_model.put_nowait(tensor[0])
++        log("info", f"accepted {tensor.shape[1]} ARC reference frames")
++        return web.json_response({"accepted": True, "frames": tensor.shape[1]})
++
+     async def go():
+         app = web.Application()
+         app.router.add_get("/api/chat", handle_chat)
++        app.router.add_post("/api/reference", handle_reference)
+         static_path: None | str = None
+         if args.static is None:
+             log("info", "retrieving the static content")
+@@ -389,6 +492,12 @@ def main():
      parser.add_argument("--host", default="localhost", type=str)
      parser.add_argument("--port", default=8998, type=int)
      parser.add_argument("--lm-config", type=str, help="The LM config as a json file.")
 +    parser.add_argument("--first-speaker", choices=["model", "user"], default="model")
++    parser.add_argument(
++        "--reference-encoder-url",
++        default=os.environ.get("REFERENCE_ENCODER_URL", "http://127.0.0.1:8001"),
++    )
++    parser.add_argument("--reference-timeout", type=float, default=5.0)
      parser.add_argument(
          "--ssl",
          type=str,
+@@ -413,6 +522,7 @@ def main():
+ 
+     client_to_server = multiprocessing.Queue()
+     server_to_client = multiprocessing.Queue()
++    reference_to_model = multiprocessing.Queue()
+ 
+     # Get the model config
+     lm_config = args.lm_config
+@@ -428,7 +538,13 @@ def main():
+             lm_config = json.load(fobj)
+ 
+     # Create two processes
+-    subprocess_args = client_to_server, server_to_client, lm_config, args
++    subprocess_args = (
++        client_to_server,
++        server_to_client,
++        reference_to_model,
++        lm_config,
++        args,
++    )
+     p1 = multiprocessing.Process(target=web_server, args=subprocess_args)
+     p2 = multiprocessing.Process(target=model_server, args=subprocess_args)
+ 
