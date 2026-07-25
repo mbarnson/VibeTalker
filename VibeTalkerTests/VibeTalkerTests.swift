@@ -292,6 +292,108 @@ struct VibeTalkerTests {
         }
     }
 
+    @Test func coordinatorPublishesGroundedStartOnlyAfterPiAcceptance() async throws {
+        let sessionID = UUID()
+        let utterance = CommittedUtterance(
+            voiceSessionID: sessionID,
+            utteranceID: UUID(),
+            revision: 1,
+            transcript: "Please update the README."
+        )
+        let interactor = StubInteractor(
+            reference: "I understand the coding request.",
+            piRequest: PiRequest(
+                operation: .start,
+                instruction: "Update the README."
+            )
+        )
+        let dispatcher = StubPiDispatcher(
+            receipt: .started(projectName: "Workspace")
+        )
+        let references = ReferenceCollector()
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: dispatcher,
+            referenceDelivery: references
+        )
+        await coordinator.beginVoiceSession(sessionID)
+
+        let turn = try await coordinator.commit(utterance)
+
+        #expect(turn.reference.text == "Work started in Workspace.")
+        #expect(turn.piReceipt == .started(projectName: "Workspace"))
+        #expect(await dispatcher.requests() == [PiRequest(
+            operation: .start,
+            instruction: "Update the README."
+        )])
+        #expect(await references.deliveries() == [turn.reference])
+    }
+
+    @Test func coordinatorRejectsStaleTranscriptBeforeInteraction() async throws {
+        let sessionID = UUID()
+        let utteranceID = UUID()
+        let interactor = StubInteractor(
+            reference: "A short factual response.",
+            piRequest: nil
+        )
+        let dispatcher = StubPiDispatcher(
+            receipt: .started(projectName: "Workspace")
+        )
+        let references = ReferenceCollector()
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: dispatcher,
+            referenceDelivery: references
+        )
+        await coordinator.beginVoiceSession(sessionID)
+
+        _ = try await coordinator.commit(CommittedUtterance(
+            voiceSessionID: sessionID,
+            utteranceID: utteranceID,
+            revision: 2,
+            transcript: "What changed?"
+        ))
+
+        await #expect(throws: ConversationCoordinatorError.self) {
+            try await coordinator.commit(CommittedUtterance(
+                voiceSessionID: sessionID,
+                utteranceID: utteranceID,
+                revision: 1,
+                transcript: "This is stale."
+            ))
+        }
+        #expect(await interactor.callCount() == 1)
+        #expect(await references.deliveries().count == 1)
+    }
+
+    @Test func coordinatorDoesNotPublishMismatchedPiReceipt() async throws {
+        let sessionID = UUID()
+        let interactor = StubInteractor(
+            reference: "Checking status.",
+            piRequest: PiRequest(operation: .status, instruction: nil)
+        )
+        let dispatcher = StubPiDispatcher(
+            receipt: .started(projectName: "Workspace")
+        )
+        let references = ReferenceCollector()
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: dispatcher,
+            referenceDelivery: references
+        )
+        await coordinator.beginVoiceSession(sessionID)
+
+        await #expect(throws: ConversationCoordinatorError.self) {
+            try await coordinator.commit(CommittedUtterance(
+                voiceSessionID: sessionID,
+                utteranceID: UUID(),
+                revision: 1,
+                transcript: "How is the job going?"
+            ))
+        }
+        #expect(await references.deliveries().isEmpty)
+    }
+
     @Test func processCoordinatorWritesAndReassemblesJSONLines() async throws {
         let coordinator = ProcessCoordinator()
         let collector = RuntimeEventCollector()
@@ -383,5 +485,62 @@ private actor RuntimeEventCollector {
 
     func messages() -> [String] {
         events.map(\.message)
+    }
+}
+
+private actor StubInteractor: InteractionServing {
+    private let reference: String
+    private let piRequest: PiRequest?
+    private var calls = 0
+
+    init(reference: String, piRequest: PiRequest?) {
+        self.reference = reference
+        self.piRequest = piRequest
+    }
+
+    func interact(with utterance: CommittedUtterance) async throws -> ValidatedInteraction {
+        calls += 1
+        return ValidatedInteraction(
+            requestID: UUID(),
+            utterance: utterance,
+            referenceResponse: reference,
+            piRequest: piRequest,
+            providerResponseID: "stub-response",
+            latency: .milliseconds(1)
+        )
+    }
+
+    func callCount() -> Int {
+        calls
+    }
+}
+
+private actor StubPiDispatcher: PiRequestDispatching {
+    private let receipt: PiDispatchReceipt
+    private var received: [PiRequest] = []
+
+    init(receipt: PiDispatchReceipt) {
+        self.receipt = receipt
+    }
+
+    func dispatch(_ request: PiRequest) async throws -> PiDispatchReceipt {
+        received.append(request)
+        return receipt
+    }
+
+    func requests() -> [PiRequest] {
+        received
+    }
+}
+
+private actor ReferenceCollector: ReferenceDelivering {
+    private var received: [ReferenceDelivery] = []
+
+    func deliver(_ delivery: ReferenceDelivery) async throws {
+        received.append(delivery)
+    }
+
+    func deliveries() -> [ReferenceDelivery] {
+        received
     }
 }
