@@ -12,7 +12,8 @@
     "models": {
       "moshika-rag-candle-bf16": "26c8294761455c0aaafbadc6772c890fdc11f68f",
       "stt-1b-en_fr-candle": "095e38f6242006a93c2541149b181988397f5c7c",
-      "ARC4_Encoder_Llama": "f27d986b193bfdff742d54412d3057b498ec8cc9"
+      "ARC4_Encoder_Llama": "f27d986b193bfdff742d54412d3057b498ec8cc9",
+      "Llama-3.2-3B-Instruct-tokenizer": "0cb88a4f764b7a12671c53f0838cd831a0843b95"
     }
   },
   "moshi-mlx-baseline": {

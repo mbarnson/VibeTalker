@@ -228,6 +228,29 @@ Apple-Silicon topology:
 Gate 1 remains open until this topology is packaged behind the native
 coordinator and the local ASR stream is connected.
 
+### Reproducible source runtime
+
+The accepted Apple-Silicon delta is no longer stranded in ignored experimental
+checkouts. `scripts/build-voice-runtime-from-source.sh` clones both pinned
+GitHub revisions, applies the tracked patches under `Patches/`, creates
+isolated environments, resolves pinned model/tokenizer revisions, and converts
+the Moshi-RAG checkpoint into the layout consumed by the native host.
+
+A clean build reproduced the previously accepted MLX BF16 checkpoint
+bit-for-bit:
+
+`544996b57b40cf3bf99c3ddcbd1bbd1da195a04b4ce43846d576bb801e75c867`
+
+The source-built ARC service then ran offline on MPS. A real `/embed` request
+returned a 65,616-byte safetensors response with shape `[1, 4, 4096]` and
+`float32` dtype. This validates the pinned local tokenizer, ARC checkpoint,
+MPS fallback, and serialization path.
+
+The builder stages under ignored `Vendor/voice-runtime`. macOS correctly
+rejects Terminal writes directly into the signed app's protected container, so
+the remaining packaging step is an app-owned import from staging rather than a
+developer-script mutation of the container.
+
 The native host now implements and tests the loopback
 `POST /v1/chat/completions` Coordinator boundary expected by the pinned
 Moshi-RAG retrieval manager. The managed MLX process receives that adapter

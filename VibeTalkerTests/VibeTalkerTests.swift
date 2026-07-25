@@ -132,12 +132,16 @@ struct VibeTalkerTests {
             referenceBaseURL: adapterURL
         )
         let moshi = try #require(specs.first(where: { $0.service == .moshi }))
+        let conditioner = try #require(
+            specs.first(where: { $0.service == .referenceEncoder })
+        )
 
         #expect(moshi.environment["LLM_BASE_URL"] == adapterURL.absoluteString)
         #expect(moshi.environment["LLM_MODEL_NAME"] == "vibetalker-coordinator")
         #expect(moshi.environment["LLM_API_KEY"] == "loopback-only")
         #expect(moshi.environment["REFERENCE_ENCODER_URL"] == "http://127.0.0.1:8001")
         #expect(!moshi.environment.keys.contains("OMLX_API_KEY"))
+        #expect(conditioner.arguments.prefix(2) == ["-m", "moshi.server_conditioner"])
     }
 
     @Test func piLaunchUsesBundledCodeAndMinimalEnvironment() throws {

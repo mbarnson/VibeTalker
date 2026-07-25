@@ -1,0 +1,184 @@
+diff --git a/moshi/moshi/conditioners/arc_encoder.py b/moshi/moshi/conditioners/arc_encoder.py
+index f54f458..b3f2ca9 100644
+--- a/moshi/moshi/conditioners/arc_encoder.py
++++ b/moshi/moshi/conditioners/arc_encoder.py
+@@ -1,14 +1,21 @@
+ # Copyright (c) Kyutai, all rights reserved.
+ # This source code is licensed under the license found in the
+ # LICENSE file in the root directory of this source tree.
++from __future__ import annotations
++
+ import logging
+ import typing as tp
+ 
+ import torch
+ from torch import nn
+ from torch.nn.utils.rnn import pad_sequence
+-from xformers.ops.fmha import memory_efficient_attention
+-from xformers.ops.fmha.attn_bias import BlockDiagonalCausalMask, BlockDiagonalMask
++try:
++    from xformers.ops.fmha import memory_efficient_attention
++    from xformers.ops.fmha.attn_bias import BlockDiagonalCausalMask, BlockDiagonalMask
++except ImportError:
++    memory_efficient_attention = None
++    BlockDiagonalCausalMask = None
++    BlockDiagonalMask = None
+ from safetensors.torch import load_file
+ from transformers import AutoTokenizer
+ from huggingface_hub import hf_hub_download
+@@ -149,8 +156,15 @@ class Attention(nn.Module):
+         xq, key, val = xq[None, ...], key[None, ...], val[None, ...]
+ 
+         if memory_efficient_attention is None:
+-            raise ImportError("xformers is required for ArcEncoderConditioner")
+-        output = memory_efficient_attention(xq, key, val, mask)
+-        output = output.view(seqlen_sum, self.n_heads * self.head_dim)
++            # The service encodes one Reference at a time, so there are no
++            # cross-sample blocks to mask on Apple Silicon.
++            output = nn.functional.scaled_dot_product_attention(
++                xq.transpose(1, 2),
++                key.transpose(1, 2),
++                val.transpose(1, 2),
++            ).transpose(1, 2)
++        else:
++            output = memory_efficient_attention(xq, key, val, mask)
++        output = output.reshape(seqlen_sum, self.n_heads * self.head_dim)
+ 
+         return self.wo(output)
+@@ -321,9 +335,8 @@ class ArcEncoderTransformer(nn.Module):
+         positions = positions_from_sizes(seqlens, self.freqs_cis.device)
+ 
+         if BlockDiagonalMask is None or BlockDiagonalCausalMask is None:
+-            raise ImportError("xformers is required for ArcEncoderConditioner")
+-
+-        if not self.causal:
++            self_att_mask = None
++        elif not self.causal:
+             self_att_mask = BlockDiagonalMask.from_seqlens(seqlens)
+         else:
+             self_att_mask = BlockDiagonalCausalMask.from_seqlens(seqlens)
+@@ -332,7 +345,7 @@ class ArcEncoderTransformer(nn.Module):
+         compress_index = 0
+ 
+         for i in range(self.n_layers):
+-            if not isinstance(self_att_mask, BlockDiagonalMask):
++            if BlockDiagonalMask is not None and not isinstance(self_att_mask, BlockDiagonalMask):
+                 self_att_mask = BlockDiagonalMask.from_seqlens(seqlens)
+ 
+             if i >= self.start_compressing:
+@@ -344,7 +357,9 @@ class ArcEncoderTransformer(nn.Module):
+                 positions = positions_from_sizes(new_seqlens, self.freqs_cis.device)
+                 new_freqs_cis = self.freqs_cis[positions].to(device=h.device)
+ 
+-                if not self.causal:
++                if BlockDiagonalMask is None or BlockDiagonalCausalMask is None:
++                    self_att_mask = None
++                elif not self.causal:
+                     self_att_mask = BlockDiagonalMask.from_seqlens(q_seqlen=new_seqlens, kv_seqlen=seqlens)
+                 else:
+                     self_att_mask = BlockDiagonalCausalMask.from_seqlens(q_seqlen=new_seqlens, kv_seqlen=seqlens)
+@@ -357,7 +372,9 @@ class ArcEncoderTransformer(nn.Module):
+                     freqs_cis_k=freqs_cis,
+                 )
+ 
+-                if not self.causal:
++                if BlockDiagonalMask is None or BlockDiagonalCausalMask is None:
++                    self_att_mask = None
++                elif not self.causal:
+                     self_att_mask = BlockDiagonalMask.from_seqlens(q_seqlen=new_seqlens, kv_seqlen=new_seqlens)
+                 else:
+                     self_att_mask = BlockDiagonalCausalMask.from_seqlens(q_seqlen=new_seqlens, kv_seqlen=new_seqlens)
+@@ -410,9 +427,11 @@ class ArcEncoderTokenizer:
+-class ArcEncoderTokenizer:
+-    def __init__(self, model_name: str):
++class ArcEncoderTokenizer:
++    def __init__(self, model_name: str, revision: str | None = None):
+         logger.info(f"Loading tokenizer from {model_name}")
+-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
++        self.tokenizer = AutoTokenizer.from_pretrained(
++            model_name, revision=revision, use_fast=False
++        )
+         self.vocab_size = self.tokenizer.vocab_size
+         self.pad_idx = -1
+         self.bos_token = self.tokenizer.bos_token_id
+         self.eos_token = self.tokenizer.eos_token_id
+         self.stop_tokens = {self.eos_token}
+@@ -445,9 +464,15 @@ class ArcEncoderConditioner(_BaseTextConditioner[TokenizedText]):
+         autocast_dtype: tp.Optional[str] = "bfloat16",
+         tokenizer_name: str = "meta-llama/Llama-3.2-3B-Instruct",
++        tokenizer_revision: str | None = None,
+         hf_repo: str | None = None,
++        hf_revision: str | None = None,
++        model_path: str | None = None,
+         **kwargs,
+     ):
++        self._tokenizer_revision: str | None = tokenizer_revision
+         self._hf_repo: str | None = hf_repo
++        self._hf_revision: str | None = hf_revision
++        self._model_path: str | None = model_path
+         self.finetune = finetune
+ 
+         embedder_params = kwargs.pop("embedder_params", None)
+@@ -468,7 +493,10 @@ class ArcEncoderConditioner(_BaseTextConditioner[TokenizedText]):
+             assert isinstance(dtype, torch.dtype)
+             self.autocast = TorchAutocast(enabled=True, device_type=self.device.split(":")[0], dtype=dtype)
+ 
+-        self.tokenizer = ArcEncoderTokenizer(tokenizer_name)
++        self.tokenizer = ArcEncoderTokenizer(
++            tokenizer_name,
++            revision=self._tokenizer_revision,
++        )
+ 
+         self._init_modules()
+ 
+@@ -513,7 +541,14 @@ class ArcEncoderConditioner(_BaseTextConditioner[TokenizedText]):
+-        if not self._hf_repo:
++        if self._model_path:
++            path = self._model_path
++        elif self._hf_repo:
++            path = hf_hub_download(
++                self._hf_repo,
++                "model.safetensors",
++                revision=self._hf_revision,
++            )
++        else:
+             return
+ 
+-        path = hf_hub_download(self._hf_repo, "model.safetensors")
+         state = load_file(path, device=str(self.device))
+         self.load_state_dict(state, assign=True, strict=False)
+         if self.finetune:
+diff --git a/moshi/moshi/server_conditioner.py b/moshi/moshi/server_conditioner.py
+index e62d3e2..94470cc 100644
+--- a/moshi/moshi/server_conditioner.py
++++ b/moshi/moshi/server_conditioner.py
+@@ -332,8 +332,10 @@ def main():
+     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
+ 
+     # Determine device
+-    if args.cuda_device.lower() == "cpu":
++    if args.cuda_device.lower() in {"cpu", "mps"}:
+         device = "cpu"
++        if args.cuda_device.lower() == "mps":
++            device = "mps"
+     else:
+         device = f"cuda:{args.cuda_device}"
+ 
+diff --git a/scripts/import_mlx.py b/scripts/import_mlx.py
+index 7fc54d3..3d93014 100644
+--- a/scripts/import_mlx.py
++++ b/scripts/import_mlx.py
+@@ -65,11 +65,12 @@ def import_model(
+     model["out_norm.weight"] = tch_model["out_norm.alpha"][0, 0]
+     for idx in range(in_n_q):
+         src_name = f"emb.{idx}.weight"
+         dst_name = f"audio_embs.{idx}.weight"
+         model[dst_name] = tch_model[src_name]
+ 
+     for k, v in sorted(tch_model.items()):
+-        print(k, v.shape, v.dtype)
++        if not silent:
++            print(k, v.shape, v.dtype)
+         if k.startswith("transformer"):
+             if k.endswith(".alpha"):
+                 v = v[0, 0]

@@ -122,7 +122,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                 service: .referenceEncoder,
                 executableURL: ragPythonURL,
                 arguments: [
-                    "-m", "moshi.moshi.server_conditioner",
+                    "-m", "moshi.server_conditioner",
                     "--moshi-weight", conditionerWeightURL.path,
                     "--lm-config", ragConfigurationURL.path,
                     "--conditioner", "reference_with_time",

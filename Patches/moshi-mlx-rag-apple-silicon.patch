@@ -1,0 +1,55 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index 36efd28..d34a16a 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -143,20 +143,36 @@ def model_server(client_to_server, server_to_client, lm_config, args):
+     model.set_dtype(mx.bfloat16)
+     if args.quantized is not None:
+         group_size = 32 if args.quantized == 4 else 64
+-        nn.quantize(model, bits=args.quantized, group_size=group_size)
++        nn.quantize(
++            model,
++            bits=args.quantized,
++            group_size=group_size,
++            class_predicate=lambda path, module: (
++                not path.startswith("condition_provider.")
++                and hasattr(module, "to_quantized")
++            ),
++        )
+ 
+     log("info", f"[SERVER] loading weights {model_file}")
+-    model.load_weights(model_file, strict=True)
++    model.load_weights(model_file, strict=False)
+     log("info", "[SERVER] weights loaded")
+ 
+-    if model.condition_provider is not None:
+-        ct = model.condition_provider.condition_tensor("description", "very_good")
+-    else:
+-        ct = None
++    ct = None
+ 
+     log("info", "[SERVER] warming up the model")
+     model.warmup(ct)
+     log("info", "[SERVER] model warmed up")
++    if model.condition_provider is not None:
++        speaker_value = (
++            "SPEAKER_MAIN" if args.first_speaker == "model" else "SPEAKER_OTHER"
++        )
++        prepend = model.condition_provider.condition_tensor(
++            "first_speaker", speaker_value
++        )
++        model.transformer(
++            mx.expand_dims(prepend.tensor, axis=1),
++            cache=model.transformer_cache,
++        )
+     gen = models.LmGen(
+         model=model,
+         max_steps=steps + 5,
+@@ -389,6 +405,7 @@ def main():
+     parser.add_argument("--host", default="localhost", type=str)
+     parser.add_argument("--port", default=8998, type=int)
+     parser.add_argument("--lm-config", type=str, help="The LM config as a json file.")
++    parser.add_argument("--first-speaker", choices=["model", "user"], default="model")
+     parser.add_argument(
+         "--ssl",
+         type=str,
