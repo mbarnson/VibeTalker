@@ -6,27 +6,19 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct VibeTalkerApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @State private var appModel = AppModel()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(appModel)
         }
-        .modelContainer(sharedModelContainer)
+        .defaultSize(width: 1_280, height: 780)
+        .commands {
+            CommandGroup(replacing: .newItem) {}
+        }
     }
 }
