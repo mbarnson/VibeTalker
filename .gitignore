@@ -1,2 +1,6 @@
 Vendor/
 .DS_Store
+.env
+docs/Apple-Silicon-CPU-Optimization-Guide.pdf
+scripts/__pycache__/
+tmp/
