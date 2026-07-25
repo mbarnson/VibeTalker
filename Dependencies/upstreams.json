@@ -4,5 +4,15 @@
     "revision": "5a073885b5f23cd6125cda0927cf50acf2bf22fb",
     "package": "packages/coding-agent",
     "integration": "source-build"
+  },
+  "moshi-rag": {
+    "repository": "https://github.com/kyutai-labs/moshi-rag.git",
+    "revision": "8c6dfc101b7871baa428424bcdc583b74fb561d9",
+    "integration": "source-build",
+    "models": {
+      "moshika-rag-candle-bf16": "26c8294761455c0aaafbadc6772c890fdc11f68f",
+      "stt-1b-en_fr-candle": "095e38f6242006a93c2541149b181988397f5c7c",
+      "ARC4_Encoder_Llama": "f27d986b193bfdff742d54412d3057b498ec8cc9"
+    }
   }
 }
