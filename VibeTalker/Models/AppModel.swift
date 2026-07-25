@@ -75,6 +75,7 @@ final class AppModel {
     private let referenceAdapter: MoshiChatCompletionsAdapter
     private let referenceServer: LoopbackReferenceServer
     private let moshiReferenceClient: any MoshiReferenceAccepting
+    private let moshiProactiveClient: any MoshiReferenceAccepting
     private let nodeHelperURL: URL
     private let credentialStore: CodingCredentialStore
     private let voiceRuntimeImporter: VoiceRuntimeImporter
@@ -91,6 +92,9 @@ final class AppModel {
         preferences: AppPreferences = AppPreferences(),
         voiceRuntimeImporter: VoiceRuntimeImporter = VoiceRuntimeImporter(),
         moshiReferenceClient: any MoshiReferenceAccepting = MoshiReferenceHTTPClient(),
+        moshiProactiveClient: any MoshiReferenceAccepting = MoshiReferenceHTTPClient(
+            endpoint: URL(string: "http://127.0.0.1:8999/api/proactive")!
+        ),
         nodeHelperURL: URL? = nil
     ) {
         let resolvedInstallation = runtimeInstallation ?? RuntimeInstallation(
@@ -131,6 +135,7 @@ final class AppModel {
             bridge: referenceBridge
         )
         self.moshiReferenceClient = moshiReferenceClient
+        self.moshiProactiveClient = moshiProactiveClient
         self.credentialStore = credentialStore
         self.preferences = preferences
         self.codingProvider = preferences.codingProvider
@@ -508,6 +513,10 @@ final class AppModel {
                 await referenceBridge.setDeliverySink { delivery in
                     try await moshiReferenceClient.accept(delivery)
                 }
+                let moshiProactiveClient = moshiProactiveClient
+                await referenceBridge.setProactiveDeliverySink { delivery in
+                    try await moshiProactiveClient.accept(delivery)
+                }
                 await referenceAdapter.reset()
                 let referenceBaseURL = try await referenceServer.start()
                 conversationCoordinator = coordinator
@@ -597,6 +606,7 @@ final class AppModel {
         }
         await referenceBridge.endSession()
         await referenceBridge.setDeliverySink { _ in }
+        await referenceBridge.setProactiveDeliverySink { _ in }
         await referenceAdapter.reset()
         referenceServer.stop()
         referenceAdapterReady = false

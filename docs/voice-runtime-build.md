@@ -23,7 +23,8 @@ The builder:
 7. maps the pinned sliced Candle Moshi-RAG checkpoint into MLX, including all
    eight generated speech depformer slices;
 8. regenerates Q8 from that validated BF16 checkpoint; and
-9. writes the runtime layout expected by `RuntimeInstallation`.
+9. renders the fixed internal proactive-completion control prompt; and
+10. writes the runtime layout expected by `RuntimeInstallation`.
 
 The default staging destination is `Vendor/voice-runtime`, which is excluded
 from Git. An absolute destination may be passed as the first argument.

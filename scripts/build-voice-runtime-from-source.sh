@@ -22,6 +22,7 @@ shared_python="$python_root/bin/python3.12"
 stt_binary="$runtime_root/Bin/vibetalker-stt"
 moshi_bf16_weight="$model_root/moshika-rag-mlx-bf16.safetensors"
 moshi_q8_weight="$model_root/moshika-rag-mlx-q8.safetensors"
+proactive_prompt="$runtime_root/proactive-completion-prompt.aiff"
 
 if [[ "$runtime_root" != /* ]] || [[ "$runtime_root" == "/" ]]; then
     echo "error: Runtime root must be an absolute, non-root path."
@@ -118,7 +119,8 @@ prepare_checkout \
     "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
     "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
     "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
-    "$repo_root/Patches/moshi-mlx-parent-termination.patch"
+    "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
+    "$repo_root/Patches/moshi-mlx-proactive-completion.patch"
 prepare_checkout \
     "$rag_repository" \
     "$rag_revision" \
@@ -182,6 +184,8 @@ fi
     "$stt_binary"
 /bin/cp "$repo_root/Dependencies/moshi-stt.toml" \
     "$runtime_root/moshi-stt.toml"
+/usr/bin/say -v Samantha -r 280 -o "$proactive_prompt" \
+    "Moshi, give the update."
 
 HF_HOME="$runtime_root/HuggingFace" \
     PYTHONPATH="$rag_checkout/site-packages" \
@@ -233,9 +237,11 @@ marker="$runtime_root/.vibetalker-voice-runtime"
         "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
         "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
         "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
+        "$repo_root/Patches/moshi-mlx-proactive-completion.patch" \
         "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch" \
         "$repo_root/scripts/convert-moshi-rag-candle-to-mlx.py" \
-        "$repo_root/scripts/quantize-moshi-mlx.py"
+        "$repo_root/scripts/quantize-moshi-mlx.py" \
+        "$proactive_prompt"
 } > "$marker"
 
 echo "Built the VibeTalker voice runtime from pinned GitHub sources in $runtime_root"

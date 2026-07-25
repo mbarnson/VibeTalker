@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "precision": "q8",
+  "protocol": {
+    "input": "continuous zero PCM; no user utterance",
+    "warmup_seconds": 4.0,
+    "capture_seconds": 20.0,
+    "required_phrases": [
+      "workspace",
+      "complete",
+      "ultraviolet"
+    ],
+    "latency_measure": "proactive POST start to first Moshi text token",
+    "latency_limit_seconds": 2.5
+  },
+  "reference": "Say exactly this completion announcement and nothing else: The Workspace project is complete. The Gate Three verification marker is ultraviolet. Repeat the exact announcement: The Workspace project is complete. The Gate Three verification marker is ultraviolet.",
+  "reference_frames": 11,
+  "reference_encoding_seconds": 0.44145183300133795,
+  "first_audio_seconds": 0.06837345799431205,
+  "first_model_text_seconds": 2.4405435000080615,
+  "marker_text_seconds": 9.506335000041872,
+  "input_asr": "",
+  "model_text": "update. Workspace project is complete. All three Gate Three verification markers are ultraviolet, and I've successfully returned to the command center.",
+  "streaming_stt_transcript": "Athletes, the Workspace Project is complete, all three Gate 3 verification markers are ultraviolet, and I've successfully returned to the command center. Is that really it? It feels anticlimactic.",
+  "audible_transcript": "Uplets, the workspace project is complete.\nAll three gate 3 verification markers are ultraviolet and I've successfully returned\nto the command center.\nIs that really it?\nIt feels anticlimactic.",
+  "required_phrases_present": {
+    "workspace": true,
+    "complete": true,
+    "ultraviolet": true
+  },
+  "audio_output": "tmp/Gate3-audio/proactive-completion.wav",
+  "audio_sha256": "febea5f4f2531b2f6da2160d041ad009d064b8569776076762cada6157eff670",
+  "audio_duration_seconds": 19.52,
+  "gate_passed": true
+}

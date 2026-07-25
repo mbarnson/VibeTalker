@@ -70,6 +70,10 @@ actor MoshiReferenceBridge: ReferenceDelivering {
     private var commitHandler: CommitHandler?
     private var deliveredByUtterance: [UUID: ReferenceDelivery] = [:]
     private var deliverySink: @Sendable (ReferenceDelivery) async throws -> Void = { _ in }
+    private var proactiveDeliverySink:
+        @Sendable (ReferenceDelivery) async throws -> Void = { _ in
+            throw MoshiReferenceAdapterError.referenceNotDelivered
+        }
 
     init(events: @escaping EventSink = { _, _ in }) {
         self.events = events
@@ -83,6 +87,12 @@ actor MoshiReferenceBridge: ReferenceDelivering {
         _ deliverySink: @escaping @Sendable (ReferenceDelivery) async throws -> Void
     ) {
         self.deliverySink = deliverySink
+    }
+
+    func setProactiveDeliverySink(
+        _ deliverySink: @escaping @Sendable (ReferenceDelivery) async throws -> Void
+    ) {
+        proactiveDeliverySink = deliverySink
     }
 
     func beginSession(
@@ -119,7 +129,7 @@ actor MoshiReferenceBridge: ReferenceDelivering {
             interactionRequestID: UUID(),
             text: text
         )
-        try await deliverySink(delivery)
+        try await proactiveDeliverySink(delivery)
         await events(.reference, "Proactive Reference: \(delivery.text)")
         return delivery
     }

@@ -121,6 +121,12 @@ nonisolated struct RuntimeInstallation: Sendable {
         rootURL.appending(path: "moshi-stt.toml")
     }
 
+    var proactivePromptURL: URL {
+        bundledVoiceRuntimeRootURL.appending(
+            path: "proactive-completion-prompt.aiff"
+        )
+    }
+
     var piWorkingDirectoryURL: URL {
         bundledRuntimeRootURL.appending(path: "pi", directoryHint: .isDirectory)
     }
@@ -171,7 +177,8 @@ nonisolated struct RuntimeInstallation: Sendable {
             file("Kyutai STT Mimi weights", sttMimiWeightURL, fileManager: fileManager),
             file("MLX model configuration", mlxConfigurationURL, fileManager: fileManager),
             file("ARC model configuration", ragConfigurationURL, fileManager: fileManager),
-            file("Kyutai STT configuration", sttConfigurationURL, fileManager: fileManager)
+            file("Kyutai STT configuration", sttConfigurationURL, fileManager: fileManager),
+            file("Moshi proactive prompt", proactivePromptURL, fileManager: fileManager)
         ]
     }
 
@@ -256,6 +263,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--mimi-weight", mimiWeightURL.path,
                     "--lm-config", mlxConfigurationURL.path,
                     "--first-speaker", "model",
+                    "--proactive-prompt", proactivePromptURL.path,
                     "--host", "127.0.0.1",
                     "--port", "8999",
                     "--static", moshiClientURL.path,

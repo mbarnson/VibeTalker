@@ -15,6 +15,7 @@ required=(
     "$source_root/moshi-mlx/client/dist/index.html"
     "$source_root/moshi-mlx/site-packages/moshi_mlx/__init__.py"
     "$source_root/moshi-rag/site-packages/moshi/__init__.py"
+    "$source_root/proactive-completion-prompt.aiff"
 )
 for path in "${required[@]}"; do
     if [[ ! -e "$path" ]]; then
@@ -41,6 +42,9 @@ mkdir -p \
 /usr/bin/rsync -a \
     "$source_root/moshi-rag/site-packages/" \
     "$runtime_root/moshi-rag/site-packages/"
+/bin/cp \
+    "$source_root/proactive-completion-prompt.aiff" \
+    "$runtime_root/proactive-completion-prompt.aiff"
 /bin/cp "$source_root/Python/bin/python3.12" "$python_helper"
 /bin/ln -s "Resources/voice-runtime/Python/lib" "$python_library_link"
 

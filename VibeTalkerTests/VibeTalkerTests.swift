@@ -267,7 +267,8 @@ struct VibeTalkerTests {
             installation.sttMimiWeightURL,
             installation.mlxConfigurationURL,
             installation.ragConfigurationURL,
-            installation.sttConfigurationURL
+            installation.sttConfigurationURL,
+            installation.proactivePromptURL
         ]
         for url in executableURLs + fileURLs {
             try fileManager.createDirectory(
@@ -328,6 +329,13 @@ struct VibeTalkerTests {
         )
         let staticIndex = try #require(moshi.arguments.firstIndex(of: "--static"))
         #expect(moshi.arguments[staticIndex + 1] == installation.moshiClientURL.path)
+        let proactiveIndex = try #require(
+            moshi.arguments.firstIndex(of: "--proactive-prompt")
+        )
+        #expect(
+            moshi.arguments[proactiveIndex + 1]
+                == installation.proactivePromptURL.path
+        )
     }
 
     @Test func voiceRuntimeImporterMovesValidatedPayloadIntoManagedRoot() throws {
@@ -355,6 +363,7 @@ struct VibeTalkerTests {
             sourceInstallation.mlxConfigurationURL,
             sourceInstallation.ragConfigurationURL,
             sourceInstallation.sttConfigurationURL,
+            sourceInstallation.proactivePromptURL,
             sourceInstallation.sttExecutableURL
         ]
         for url in [sourceInstallation.pythonURL] + requiredFiles {
@@ -980,7 +989,7 @@ struct VibeTalkerTests {
         )
         let bridge = MoshiReferenceBridge()
         let deliveredToMoshi = ReferenceCollector()
-        await bridge.setDeliverySink { delivery in
+        await bridge.setProactiveDeliverySink { delivery in
             try await deliveredToMoshi.deliver(delivery)
         }
         let coordinator = ConversationCoordinator(
@@ -1056,7 +1065,9 @@ struct VibeTalkerTests {
         #expect(delivery.voiceSessionID == sessionID)
         #expect(
             delivery.text
-                == "Work in Workspace is complete. Changed one file and verified the test."
+                == """
+                Say exactly this completion announcement and nothing else: The Workspace project is complete. Changed one file and verified the test. Repeat the exact announcement: The Workspace project is complete. Changed one file and verified the test.
+                """
         )
         #expect(await deliveredToMoshi.deliveries() == [delivery])
     }
@@ -1067,7 +1078,7 @@ struct VibeTalkerTests {
         let reference = PiTerminalOutcome.completed(summary: summary)
             .proactiveReference(projectName: "Workspace")
 
-        #expect(reference.count == 400)
+        #expect(reference.count <= 400)
         #expect(!reference.contains("should-never-be-spoken"))
     }
 

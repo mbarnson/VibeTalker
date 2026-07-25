@@ -1,0 +1,87 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index 38c02bd..6dbf187 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -286,5 +286,15 @@ def web_server(
+         nc = lm_config.depformer.num_slices
+         max_delay = max(lm_config.audio_delays)
+     audio_tokenizer = rustymimi.StreamTokenizer(mimi_file, num_codebooks=nc)  # type: ignore
++    proactive_prompt_frames = []
++    if args.proactive_prompt is not None:
++        prompt_pcm, _ = sphn.read(args.proactive_prompt, sample_rate=SAMPLE_RATE)
++        prompt_pcm = np.asarray(prompt_pcm[0], dtype=np.float32)
++        for offset in range(0, prompt_pcm.shape[-1], FRAME_SIZE):
++            frame = prompt_pcm[offset : offset + FRAME_SIZE]
++            if frame.shape[-1] < FRAME_SIZE:
++                frame = np.pad(frame, (0, FRAME_SIZE - frame.shape[-1]))
++            proactive_prompt_frames.append(frame)
++    proactive_input = queue.Queue()
+     start = server_to_client.recv()
+     log("info", f"[CLIENT] received '{start}' from server, starting...")
+@@ -409,7 +419,11 @@ def web_server(
+                         while all_pcm_data.shape[-1] >= FRAME_SIZE:
+                             chunk = all_pcm_data[:FRAME_SIZE]
+                             all_pcm_data = all_pcm_data[FRAME_SIZE:]
+-                            input_queue.put_nowait(chunk)
++                            try:
++                                model_chunk = proactive_input.get_nowait()
++                            except queue.Empty:
++                                model_chunk = chunk
++                            input_queue.put_nowait(model_chunk)
+                             await stt_ws.send_bytes(msgpack.packb(
+                                 {"type": "Audio", "pcm": chunk.tolist()},
+                                 use_bin_type=True,
+@@ -515,4 +529,4 @@ def web_server(
+-    async def handle_reference(request):
++    async def encode_reference(request):
+         try:
+             payload = await request.json()
+         except (json.JSONDecodeError, aiohttp.ContentTypeError):
+@@ -561,12 +575,37 @@ def web_server(
+             except FileNotFoundError:
+                 pass
+         log("info", f"accepted {tensor.shape[1]} ARC reference frames")
+-        return web.json_response({"accepted": True, "frames": tensor.shape[1]})
++        return tensor.shape[1]
++
++    async def handle_reference(request):
++        frame_count = await encode_reference(request)
++        return web.json_response({"accepted": True, "frames": frame_count})
++
++    async def handle_proactive(request):
++        if not proactive_prompt_frames:
++            raise web.HTTPServiceUnavailable(
++                reason="proactive prompt audio is not configured"
++            )
++        frame_count = await encode_reference(request)
++        try:
++            while True:
++                proactive_input.get_nowait()
++        except queue.Empty:
++            pass
++        for frame in proactive_prompt_frames:
++            proactive_input.put_nowait(frame)
++        log(
++            "info",
++            "queued proactive completion prompt "
++            f"({len(proactive_prompt_frames)} audio frames)",
++        )
++        return web.json_response({"accepted": True, "frames": frame_count})
+-
++
+     async def go():
+         app = web.Application()
+         app.router.add_get("/api/chat", handle_chat)
+         app.router.add_post("/api/reference", handle_reference)
++        app.router.add_post("/api/proactive", handle_proactive)
+         static_path: None | str = None
+         if args.static is None:
+             log("info", "retrieving the static content")
+@@ -637,6 +676,7 @@ def main():
+         default=os.environ.get("REFERENCE_ENCODER_URL", "http://127.0.0.1:8001"),
+     )
+     parser.add_argument("--reference-timeout", type=float, default=5.0)
++    parser.add_argument("--proactive-prompt", type=str)
+     parser.add_argument(
+         "--stt-url",
+         default=os.environ.get(

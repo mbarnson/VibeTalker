@@ -191,6 +191,8 @@ class ManagedRuntime:
                 str(self.root / "moshi-rag-mlx-config.json"),
                 "--first-speaker",
                 self.first_speaker,
+                "--proactive-prompt",
+                str(self.root / "proactive-completion-prompt.aiff"),
                 "--host",
                 "127.0.0.1",
                 "--port",

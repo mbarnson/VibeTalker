@@ -8,24 +8,36 @@ nonisolated enum PiTerminalOutcome: Equatable, Sendable {
     func proactiveReference(projectName: String) -> String {
         let project = projectName
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefix: String
+        let update: String
         switch self {
         case .completed(let summary):
             let normalized = summary?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            prefix = normalized.flatMap { $0.isEmpty ? nil : $0 }
-                .map { "Work in \(project) is complete. \($0)" }
-                ?? "Work in \(project) is complete."
+            update = normalized.flatMap { $0.isEmpty ? nil : $0 }
+                .map { "The \(project) project is complete. \($0)" }
+                ?? "The \(project) project is complete."
         case .aborted:
-            prefix = "Work in \(project) was cancelled."
+            update = "Work in the \(project) project was cancelled."
         case .failed(let message):
             let normalized = message
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            prefix = normalized.isEmpty
-                ? "Work in \(project) failed."
-                : "Work in \(project) failed. \(normalized)"
+            update = normalized.isEmpty
+                ? "Work in the \(project) project failed."
+                : "Work in the \(project) project failed. \(normalized)"
         }
-        return String(SecretRedactor.redact(prefix).prefix(400))
+        let firstInstruction =
+            "Say exactly this completion announcement and nothing else: "
+        let repeatInstruction = " Repeat the exact announcement: "
+        let redactedUpdate = SecretRedactor.redact(update)
+        let updateLimit = max(
+            0,
+            (400 - firstInstruction.count - repeatInstruction.count) / 2
+        )
+        let boundedUpdate = String(redactedUpdate.prefix(updateLimit))
+        return firstInstruction
+            + boundedUpdate
+            + repeatInstruction
+            + boundedUpdate
     }
 }
 
