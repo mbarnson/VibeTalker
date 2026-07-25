@@ -228,6 +228,14 @@ Apple-Silicon topology:
 Gate 1 remains open until this topology is packaged behind the native
 coordinator and the local ASR stream is connected.
 
+The native host now implements and tests the loopback
+`POST /v1/chat/completions` Coordinator boundary expected by the pinned
+Moshi-RAG retrieval manager. The managed MLX process receives that adapter
+location through its minimal child environment. This closes the host-side
+Reference transport seam only: the current `moshi_mlx.local_web` invocation
+still needs the packaged local ASR path and the ARC streaming-sum injection
+described above.
+
 The original Rust/Candle gate remains a recorded failure. The subsequent
 investigation selected the second architecture revision: retain the ARC
 encoder as a supervised sidecar and feed its encoded streaming-sum tensor into

@@ -29,6 +29,9 @@ final class AppModel {
     var codingCredentialStoredInKeychain = false
     var codingBaseURL = "http://127.0.0.1:8000/v1"
     var codingModelID = ""
+    var interactionEndpoint = "http://127.0.0.1:8000/v1/responses"
+    var interactionModelID = ""
+    var referenceAdapterReady = false
 
     private let ledger = EventLedger()
     private let preflight: NativePreflight
@@ -36,9 +39,14 @@ final class AppModel {
     private let runtimeInstallation: RuntimeInstallation
     private let piClient: PiRPCClient
     private let piJobs: PiJobController
+    private let referenceBridge: MoshiReferenceBridge
+    private let referenceAdapter: MoshiChatCompletionsAdapter
+    private let referenceServer: LoopbackReferenceServer
     private let nodeHelperURL: URL
     private let credentialStore: CodingCredentialStore
     private var pendingPiOutcome: PiTerminalOutcome?
+    private var conversationCoordinator: ConversationCoordinator?
+    private var voiceSessionID: UUID?
 
     init(
         preflight: NativePreflight = NativePreflight(),
@@ -59,12 +67,21 @@ final class AppModel {
             rpc: self.piClient,
             projectName: resolvedInstallation.sandboxWorkspaceURL.lastPathComponent
         )
+        let referenceBridge = MoshiReferenceBridge()
+        self.referenceBridge = referenceBridge
+        let referenceAdapter = MoshiChatCompletionsAdapter(bridge: referenceBridge)
+        self.referenceAdapter = referenceAdapter
+        self.referenceServer = LoopbackReferenceServer(adapter: referenceAdapter)
         self.credentialStore = credentialStore
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
             .appending(path: "Contents/Helpers/vibetalker-node")
         self.runtimeArtifacts = resolvedInstallation.diagnostics()
         self.piArtifacts = resolvedInstallation.piDiagnostics(nodeURL: self.nodeHelperURL)
-        Task {
+        Task { [weak self, referenceBridge] in
+            guard let self else { return }
+            await referenceBridge.setEventSink { [weak self] kind, message in
+                await self?.publish(kind, message)
+            }
             await publish(.system, "VibeTalker native host initialized")
             refreshCodingCredentialStatus()
         }
@@ -246,13 +263,61 @@ final class AppModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let specs = try runtimeInstallation.voiceLaunchSpecs()
+                let endpoint = interactionEndpoint
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let modelID = interactionModelID
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let endpointURL = URL(string: endpoint),
+                      ["http", "https"].contains(endpointURL.scheme?.lowercased()),
+                      endpointURL.host != nil,
+                      !modelID.isEmpty else {
+                    throw InteractorError.invalidConfiguration
+                }
+                let interactionKey: String?
+                if let environmentKey = ProcessInfo.processInfo.environment[
+                    CodingProvider.responsesCompatible.environmentKey
+                ], !environmentKey.isEmpty {
+                    interactionKey = environmentKey
+                } else {
+                    interactionKey = try await credentialStore.credential(
+                        for: .responsesCompatible
+                    )?.value
+                }
+                let interactor = ResponsesInteractor(configuration: .init(
+                    endpoint: endpointURL,
+                    model: modelID,
+                    apiKey: interactionKey
+                ))
+                let coordinator = ConversationCoordinator(
+                    interactor: interactor,
+                    piDispatcher: piJobs,
+                    referenceDelivery: referenceBridge
+                )
+                let sessionID = UUID()
+                await coordinator.beginVoiceSession(sessionID)
+                await referenceBridge.beginSession(sessionID) { utterance in
+                    try await coordinator.commit(utterance)
+                }
+                await referenceAdapter.reset()
+                let referenceBaseURL = try await referenceServer.start()
+                referenceAdapterReady = true
+                conversationCoordinator = coordinator
+                voiceSessionID = sessionID
+                await publish(
+                    .completion,
+                    "Coordinator adapter ready at \(referenceBaseURL.absoluteString)"
+                )
+
+                let specs = try runtimeInstallation.voiceLaunchSpecs(
+                    referenceBaseURL: referenceBaseURL
+                )
                 for spec in specs {
                     try await processCoordinator.start(spec, events: eventSink)
                     runtimeStates = await processCoordinator.snapshot()
                 }
                 await publish(.completion, "Local MLX Moshi-RAG topology started")
             } catch {
+                await endVoiceSession()
                 runtimeStates = await processCoordinator.snapshot()
                 await publish(.error, "Voice runtime start failed: \(error.localizedDescription)")
             }
@@ -263,9 +328,22 @@ final class AppModel {
         Task {
             await processCoordinator.stop(.moshi)
             await processCoordinator.stop(.referenceEncoder)
+            await endVoiceSession()
             runtimeStates = await processCoordinator.snapshot()
             await publish(.system, "Voice runtime stop requested")
         }
+    }
+
+    private func endVoiceSession() async {
+        if let voiceSessionID, let conversationCoordinator {
+            await conversationCoordinator.endVoiceSession(voiceSessionID)
+        }
+        await referenceBridge.endSession()
+        await referenceAdapter.reset()
+        referenceServer.stop()
+        referenceAdapterReady = false
+        conversationCoordinator = nil
+        voiceSessionID = nil
     }
 
     func runNativePreflight() {

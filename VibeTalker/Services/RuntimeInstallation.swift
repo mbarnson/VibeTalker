@@ -94,13 +94,15 @@ nonisolated struct RuntimeInstallation: Sendable {
         ]
     }
 
-    func voiceLaunchSpecs() throws -> [RuntimeProcessSpec] {
+    func voiceLaunchSpecs(
+        referenceBaseURL: URL? = nil
+    ) throws -> [RuntimeProcessSpec] {
         let failures = diagnostics().filter { !$0.available }
         guard failures.isEmpty else {
             throw RuntimeInstallationError.missingArtifacts(failures.map(\.label))
         }
 
-        let commonEnvironment = [
+        var commonEnvironment = [
             "HOME": rootURL.path,
             "HF_HOME": rootURL.appending(path: "HuggingFace").path,
             "NO_PROXY": "127.0.0.1,localhost",
@@ -108,6 +110,12 @@ nonisolated struct RuntimeInstallation: Sendable {
             "PYTHONUNBUFFERED": "1",
             "TMPDIR": FileManager.default.temporaryDirectory.path
         ]
+        if let referenceBaseURL {
+            commonEnvironment["LLM_BASE_URL"] = referenceBaseURL.absoluteString
+            commonEnvironment["LLM_MODEL_NAME"] = "vibetalker-coordinator"
+            commonEnvironment["LLM_API_KEY"] = "loopback-only"
+            commonEnvironment["REFERENCE_ENCODER_URL"] = "http://127.0.0.1:8001"
+        }
 
         return [
             RuntimeProcessSpec(

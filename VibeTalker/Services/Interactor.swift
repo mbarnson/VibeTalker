@@ -24,6 +24,7 @@ nonisolated struct InteractorConfiguration: Sendable {
 }
 
 nonisolated enum InteractorError: LocalizedError {
+    case invalidConfiguration
     case invalidHTTPResponse
     case providerFailure(Int, String)
     case providerStreamFailure(String)
@@ -33,6 +34,8 @@ nonisolated enum InteractorError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .invalidConfiguration:
+            "Interactor endpoint and model ID are required."
         case .invalidHTTPResponse:
             "Interactor returned a non-HTTP response."
         case .providerFailure(let status, let message):

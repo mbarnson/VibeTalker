@@ -49,6 +49,29 @@ struct ContentView: View {
 
             GroupBox("Managed local voice runtime") {
                 VStack(alignment: .leading, spacing: 10) {
+                    TextField(
+                        "Responses endpoint",
+                        text: Bindable(model).interactionEndpoint
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("interaction-endpoint")
+                    TextField(
+                        "Interaction model ID",
+                        text: Bindable(model).interactionModelID
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("interaction-model-id")
+                    Label(
+                        model.referenceAdapterReady
+                            ? "Coordinator adapter ready"
+                            : "Coordinator adapter stopped",
+                        systemImage: model.referenceAdapterReady
+                            ? "bolt.horizontal.circle.fill"
+                            : "bolt.horizontal.circle"
+                    )
+                    .foregroundStyle(
+                        model.referenceAdapterReady ? .green : .secondary
+                    )
                     ForEach(model.runtimeArtifacts) { artifact in
                         HStack {
                             Image(systemName: artifact.available

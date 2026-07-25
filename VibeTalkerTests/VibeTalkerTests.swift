@@ -92,6 +92,54 @@ struct VibeTalkerTests {
         }
     }
 
+    @Test func voiceRuntimeRoutesMoshiRetrievalThroughCoordinatorAdapter() throws {
+        let fileManager = FileManager.default
+        let root = fileManager.temporaryDirectory
+            .appending(path: "VibeTalker-Voice-Fixture-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: root) }
+
+        let installation = RuntimeInstallation(rootURL: root)
+        let executableURLs = [
+            installation.mlxPythonURL,
+            installation.ragPythonURL
+        ]
+        let fileURLs = [
+            installation.moshiWeightURL,
+            installation.conditionerWeightURL,
+            installation.tokenizerURL,
+            installation.mimiWeightURL,
+            installation.mlxConfigurationURL,
+            installation.ragConfigurationURL
+        ]
+        for url in executableURLs + fileURLs {
+            try fileManager.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data().write(to: url)
+        }
+        for url in executableURLs {
+            try fileManager.setAttributes(
+                [.posixPermissions: 0o700],
+                ofItemAtPath: url.path
+            )
+        }
+
+        let adapterURL = try #require(
+            URL(string: "http://127.0.0.1:8173/v1")
+        )
+        let specs = try installation.voiceLaunchSpecs(
+            referenceBaseURL: adapterURL
+        )
+        let moshi = try #require(specs.first(where: { $0.service == .moshi }))
+
+        #expect(moshi.environment["LLM_BASE_URL"] == adapterURL.absoluteString)
+        #expect(moshi.environment["LLM_MODEL_NAME"] == "vibetalker-coordinator")
+        #expect(moshi.environment["LLM_API_KEY"] == "loopback-only")
+        #expect(moshi.environment["REFERENCE_ENCODER_URL"] == "http://127.0.0.1:8001")
+        #expect(!moshi.environment.keys.contains("OMLX_API_KEY"))
+    }
+
     @Test func piLaunchUsesBundledCodeAndMinimalEnvironment() throws {
         let fixture = FileManager.default.temporaryDirectory
             .appending(path: "VibeTalker-Pi-Fixture-\(UUID().uuidString)")
@@ -392,6 +440,118 @@ struct VibeTalkerTests {
             ))
         }
         #expect(await references.deliveries().isEmpty)
+    }
+
+    @Test func moshiAdapterUsesLatestHumanTurnAndCoalescesRetrievalRetry() async throws {
+        let interactor = StubInteractor(
+            reference: "The grounded coding acknowledgement is supplied by Pi.",
+            piRequest: PiRequest(
+                operation: .start,
+                instruction: "Update the README."
+            )
+        )
+        let dispatcher = StubPiDispatcher(
+            receipt: .started(projectName: "Workspace")
+        )
+        let bridge = MoshiReferenceBridge()
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: dispatcher,
+            referenceDelivery: bridge
+        )
+        let sessionID = UUID()
+        await coordinator.beginVoiceSession(sessionID)
+        await bridge.beginSession(sessionID) { utterance in
+            try await coordinator.commit(utterance)
+        }
+        let adapter = MoshiChatCompletionsAdapter(bridge: bridge)
+        let request = try JSONSerialization.data(withJSONObject: [
+            "model": "vibetalker",
+            "messages": [
+                [
+                    "role": "system",
+                    "content": "You are a helpful assistant."
+                ],
+                [
+                    "role": "user",
+                    "content": """
+                    Example:
+                    Human: What color is the sky?
+                    Reference: The daytime sky is blue.
+                    Human: Please update the README.
+                    Reference:
+                    """
+                ]
+            ]
+        ])
+
+        async let first = adapter.respond(to: request)
+        async let retry = adapter.respond(to: request)
+        let (firstResult, retryResult) = try await (first, retry)
+
+        #expect(firstResult == retryResult)
+        #expect(firstResult.statusCode == 200)
+        #expect(await interactor.callCount() == 1)
+        #expect(await dispatcher.requests() == [
+            PiRequest(operation: .start, instruction: "Update the README.")
+        ])
+
+        let payload = try #require(
+            JSONSerialization.jsonObject(with: firstResult.body)
+                as? [String: Any]
+        )
+        let choices = try #require(payload["choices"] as? [[String: Any]])
+        let choice = try #require(choices.first)
+        let message = try #require(choice["message"] as? [String: Any])
+        #expect(message["content"] as? String == "Work started in Workspace.")
+    }
+
+    @Test func loopbackReferenceServerServesPinnedMoshiRoute() async throws {
+        let interactor = StubInteractor(
+            reference: "Cobalt is the verification color.",
+            piRequest: nil
+        )
+        let dispatcher = StubPiDispatcher(
+            receipt: .status(projectName: "Workspace", summary: "Idle")
+        )
+        let bridge = MoshiReferenceBridge()
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: dispatcher,
+            referenceDelivery: bridge
+        )
+        let sessionID = UUID()
+        await coordinator.beginVoiceSession(sessionID)
+        await bridge.beginSession(sessionID) { utterance in
+            try await coordinator.commit(utterance)
+        }
+        let adapter = MoshiChatCompletionsAdapter(bridge: bridge)
+        let server = LoopbackReferenceServer(adapter: adapter)
+        let baseURL = try await server.start()
+        defer { server.stop() }
+
+        var request = URLRequest(
+            url: baseURL.appending(path: "chat/completions")
+        )
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "model": "vibetalker-coordinator",
+            "messages": [[
+                "role": "user",
+                "content": "Human: What is the verification color?\nReference:"
+            ]]
+        ])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        #expect((response as? HTTPURLResponse)?.statusCode == 200)
+        let payload = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        let choices = try #require(payload["choices"] as? [[String: Any]])
+        let choice = try #require(choices.first)
+        let message = try #require(choice["message"] as? [String: Any])
+        #expect(message["content"] as? String == "Cobalt is the verification color.")
     }
 
     @Test func piJobControllerSerializesTypedAndVoiceAdmission() async throws {
