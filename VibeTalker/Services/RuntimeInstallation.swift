@@ -19,12 +19,24 @@ nonisolated struct RuntimeInstallation: Sendable {
         self.bundledRuntimeRootURL = bundledRuntimeRootURL ?? self.rootURL
     }
 
+    var pythonURL: URL {
+        rootURL.appending(path: "Python/bin/python3.12")
+    }
+
     var mlxPythonURL: URL {
-        rootURL.appending(path: "moshi-mlx/.venv/bin/python")
+        pythonURL
     }
 
     var ragPythonURL: URL {
-        rootURL.appending(path: "moshi-rag/.venv/bin/python")
+        pythonURL
+    }
+
+    var mlxSitePackagesURL: URL {
+        rootURL.appending(path: "moshi-mlx/site-packages")
+    }
+
+    var ragSitePackagesURL: URL {
+        rootURL.appending(path: "moshi-rag/site-packages")
     }
 
     var mlxWorkingDirectoryURL: URL {
@@ -83,8 +95,17 @@ nonisolated struct RuntimeInstallation: Sendable {
 
     func diagnostics(fileManager: FileManager = .default) -> [RuntimeArtifactDiagnostic] {
         [
-            executable("MLX Python", mlxPythonURL, fileManager: fileManager),
-            executable("Moshi-RAG Python", ragPythonURL, fileManager: fileManager),
+            executable("Packaged Python 3.12", pythonURL, fileManager: fileManager),
+            file(
+                "MLX Moshi source package",
+                mlxSitePackagesURL.appending(path: "moshi_mlx/__init__.py"),
+                fileManager: fileManager
+            ),
+            file(
+                "Moshi-RAG conditioner package",
+                ragSitePackagesURL.appending(path: "moshi/__init__.py"),
+                fileManager: fileManager
+            ),
             file("MLX Moshi-RAG weights", moshiWeightURL, fileManager: fileManager),
             file("ARC conditioner weights", conditionerWeightURL, fileManager: fileManager),
             file("Moshi tokenizer", tokenizerURL, fileManager: fileManager),
@@ -107,7 +128,11 @@ nonisolated struct RuntimeInstallation: Sendable {
             "HF_HOME": rootURL.appending(path: "HuggingFace").path,
             "NO_PROXY": "127.0.0.1,localhost",
             "PATH": "/usr/bin:/bin",
+            "PYTHONHOME": rootURL.appending(path: "Python").path,
+            "PYTHONNOUSERSITE": "1",
             "PYTHONUNBUFFERED": "1",
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
             "TMPDIR": FileManager.default.temporaryDirectory.path
         ]
         if let referenceBaseURL {
@@ -116,6 +141,11 @@ nonisolated struct RuntimeInstallation: Sendable {
             commonEnvironment["LLM_API_KEY"] = "loopback-only"
             commonEnvironment["REFERENCE_ENCODER_URL"] = "http://127.0.0.1:8001"
         }
+
+        var conditionerEnvironment = commonEnvironment
+        conditionerEnvironment["PYTHONPATH"] = ragSitePackagesURL.path
+        var moshiEnvironment = commonEnvironment
+        moshiEnvironment["PYTHONPATH"] = mlxSitePackagesURL.path
 
         return [
             RuntimeProcessSpec(
@@ -131,7 +161,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--port", "8001"
                 ],
                 workingDirectoryURL: ragWorkingDirectoryURL,
-                environment: commonEnvironment
+                environment: conditionerEnvironment
             ),
             RuntimeProcessSpec(
                 service: .moshi,
@@ -148,7 +178,7 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--no-browser"
                 ],
                 workingDirectoryURL: mlxWorkingDirectoryURL,
-                environment: commonEnvironment
+                environment: moshiEnvironment
             )
         ]
     }
@@ -295,6 +325,165 @@ nonisolated enum RuntimeInstallationError: LocalizedError, Equatable {
             "Managed runtime is incomplete: \(labels.joined(separator: ", "))"
         case .invalidCustomProvider:
             "A valid HTTP(S) endpoint and model ID are required for a compatible provider."
+        }
+    }
+}
+
+nonisolated enum VoiceRuntimeImporterError: LocalizedError, Equatable {
+    case invalidSource
+    case revisionMismatch
+    case incompleteSource([String])
+    case sourceMatchesDestination
+    case unsafeSymbolicLink(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidSource:
+            "The selected folder is not a VibeTalker voice-runtime staging directory."
+        case .revisionMismatch:
+            "The staged voice runtime does not match VibeTalker's pinned revisions."
+        case .incompleteSource(let labels):
+            "The staged voice runtime is incomplete: \(labels.joined(separator: ", "))."
+        case .sourceMatchesDestination:
+            "The staged runtime must be outside VibeTalker's managed runtime directory."
+        case .unsafeSymbolicLink(let path):
+            "The staged runtime contains a link outside its root: \(path)."
+        }
+    }
+}
+
+nonisolated struct VoiceRuntimeImporter: Sendable {
+    static let moshiRevision = "e6a55d2722a65870ef52a6c9f6ecfc0e90f38362"
+    static let ragRevision = "8c6dfc101b7871baa428424bcdc583b74fb561d9"
+
+    private let components = [
+        "Python",
+        "moshi-mlx",
+        "moshi-rag",
+        "Models",
+        "moshi-rag-mlx-config.json",
+        "moshi-rag-config.json",
+        ".vibetalker-voice-runtime"
+    ]
+
+    func importRuntime(
+        from sourceURL: URL,
+        into installation: RuntimeInstallation,
+        fileManager: FileManager = .default
+    ) throws {
+        let source = sourceURL.standardizedFileURL
+        let destination = installation.rootURL.standardizedFileURL
+        guard source != destination,
+              !destination.path.hasPrefix(source.path + "/"),
+              !source.path.hasPrefix(destination.path + "/") else {
+            throw VoiceRuntimeImporterError.sourceMatchesDestination
+        }
+
+        try validate(source, fileManager: fileManager)
+        try fileManager.createDirectory(
+            at: destination,
+            withIntermediateDirectories: true
+        )
+
+        let transactionID = UUID().uuidString
+        let staging = destination.appending(
+            path: ".voice-import-\(transactionID)",
+            directoryHint: .isDirectory
+        )
+        let backup = destination.appending(
+            path: ".voice-backup-\(transactionID)",
+            directoryHint: .isDirectory
+        )
+        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: backup, withIntermediateDirectories: true)
+
+        var installedComponents: [String] = []
+        var backedUpComponents: [String] = []
+        do {
+            for component in components {
+                try fileManager.copyItem(
+                    at: source.appending(path: component),
+                    to: staging.appending(path: component)
+                )
+            }
+            try validate(staging, fileManager: fileManager)
+
+            for component in components {
+                let current = destination.appending(path: component)
+                if fileManager.fileExists(atPath: current.path) {
+                    try fileManager.moveItem(
+                        at: current,
+                        to: backup.appending(path: component)
+                    )
+                    backedUpComponents.append(component)
+                }
+                try fileManager.moveItem(
+                    at: staging.appending(path: component),
+                    to: current
+                )
+                installedComponents.append(component)
+            }
+            try fileManager.removeItem(at: backup)
+            try fileManager.removeItem(at: staging)
+        } catch {
+            for component in installedComponents.reversed() {
+                try? fileManager.removeItem(
+                    at: destination.appending(path: component)
+                )
+            }
+            for component in backedUpComponents.reversed() {
+                try? fileManager.moveItem(
+                    at: backup.appending(path: component),
+                    to: destination.appending(path: component)
+                )
+            }
+            try? fileManager.removeItem(at: backup)
+            try? fileManager.removeItem(at: staging)
+            throw error
+        }
+    }
+
+    private func validate(
+        _ rootURL: URL,
+        fileManager: FileManager
+    ) throws {
+        let markerURL = rootURL.appending(path: ".vibetalker-voice-runtime")
+        guard let marker = try? String(contentsOf: markerURL, encoding: .utf8) else {
+            throw VoiceRuntimeImporterError.invalidSource
+        }
+        guard marker.contains("moshi=\(Self.moshiRevision)"),
+              marker.contains("moshi-rag=\(Self.ragRevision)") else {
+            throw VoiceRuntimeImporterError.revisionMismatch
+        }
+        let missing = RuntimeInstallation(rootURL: rootURL)
+            .diagnostics(fileManager: fileManager)
+            .filter { !$0.available }
+            .map(\.label)
+        guard missing.isEmpty else {
+            throw VoiceRuntimeImporterError.incompleteSource(missing)
+        }
+        try validateSymbolicLinks(in: rootURL, fileManager: fileManager)
+    }
+
+    private func validateSymbolicLinks(
+        in rootURL: URL,
+        fileManager: FileManager
+    ) throws {
+        let keys: [URLResourceKey] = [.isSymbolicLinkKey]
+        guard let enumerator = fileManager.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles]
+        ) else {
+            throw VoiceRuntimeImporterError.invalidSource
+        }
+        for case let itemURL as URL in enumerator {
+            let values = try itemURL.resourceValues(forKeys: Set(keys))
+            guard values.isSymbolicLink == true else { continue }
+            let resolved = itemURL.resolvingSymlinksInPath().standardizedFileURL
+            guard resolved.path.hasPrefix(rootURL.path + "/") else {
+                throw VoiceRuntimeImporterError.unsafeSymbolicLink(itemURL.path)
+            }
         }
     }
 }

@@ -15,6 +15,8 @@ uv_command="${UV_COMMAND:-uv}"
 mlx_checkout="$runtime_root/moshi-mlx"
 rag_checkout="$runtime_root/moshi-rag"
 model_root="$runtime_root/Models"
+python_root="$runtime_root/Python"
+shared_python="$python_root/bin/python3.12"
 
 if [[ "$runtime_root" != /* ]] || [[ "$runtime_root" == "/" ]]; then
     echo "error: Runtime root must be an absolute, non-root path."
@@ -29,24 +31,28 @@ if [[ "$python_version" != "3.12.11" ]]; then
     echo "error: Expected Python 3.12.11, found $python_version."
     exit 1
 fi
+python_source_root="$("$python_command" -c 'import sys; print(sys.prefix)')"
+if [[ "$python_source_root" != /* ]] || [[ ! -x "$python_source_root/bin/python3.12" ]]; then
+    echo "error: Could not resolve the relocatable Python 3.12.11 runtime."
+    exit 1
+fi
 
-create_environment() {
+install_target_packages() {
     local destination="$1"
-    if command -v "$uv_command" >/dev/null; then
-        "$uv_command" venv --clear --python "$python_command" "$destination"
-    else
-        "$python_command" -m venv --clear "$destination"
-        "$destination/bin/python" -m pip install --upgrade pip
-    fi
-}
-
-install_packages() {
-    local environment="$1"
     shift
+    if [[ "$destination" != "$runtime_root/"* ]] || [[ "$destination" == "$runtime_root" ]]; then
+        echo "error: Refusing to replace package target outside the runtime root."
+        exit 1
+    fi
+    rm -rf "$destination"
+    mkdir -p "$destination"
     if command -v "$uv_command" >/dev/null; then
-        "$uv_command" pip install --python "$environment/bin/python" "$@"
+        "$uv_command" pip install \
+            --python "$shared_python" \
+            --target "$destination" \
+            "$@"
     else
-        "$environment/bin/python" -m pip install "$@"
+        "$python_command" -m pip install --target "$destination" "$@"
     fi
 }
 
@@ -93,25 +99,37 @@ prepare_checkout \
     "$rag_checkout" \
     "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch"
 
-create_environment "$mlx_checkout/.venv"
-install_packages "$mlx_checkout/.venv" \
+/usr/bin/rsync -a --delete "$python_source_root/" "$python_root/"
+for obsolete_environment in "$mlx_checkout/.venv" "$rag_checkout/.venv"; do
+    if [[ -d "$obsolete_environment" ]] &&
+       [[ "$obsolete_environment" == "$runtime_root/"* ]]; then
+        rm -rf "$obsolete_environment"
+    fi
+done
+
+install_target_packages "$mlx_checkout/site-packages" \
     -r "$repo_root/Dependencies/moshi-mlx-requirements.lock" \
     "$mlx_checkout/moshi_mlx"
 
-create_environment "$rag_checkout/.venv"
-install_packages "$rag_checkout/.venv" --no-deps "$rag_checkout/moshi"
-install_packages "$rag_checkout/.venv" \
+install_target_packages "$rag_checkout/site-packages" \
+    --no-deps \
+    "$rag_checkout/moshi"
+install_target_packages "$rag_checkout/dependencies" \
     -r "$repo_root/Dependencies/moshi-rag-conditioner-requirements.lock"
+/usr/bin/rsync -a "$rag_checkout/dependencies/" "$rag_checkout/site-packages/"
+rm -rf "$rag_checkout/dependencies"
 
 HF_HOME="$runtime_root/HuggingFace" \
-    "$rag_checkout/.venv/bin/python" \
+    PYTHONPATH="$rag_checkout/site-packages" \
+    "$shared_python" \
     "$repo_root/scripts/download-voice-models.py" \
     "$runtime_root" \
     "$repo_root/Dependencies/moshi-rag-pytorch-config.json"
 
 mkdir -p "$model_root"
 if [[ ! -f "$model_root/moshika-rag-mlx-bf16.safetensors" ]]; then
-    "$rag_checkout/.venv/bin/python" \
+    PYTHONPATH="$rag_checkout/site-packages" \
+        "$shared_python" \
         "$rag_checkout/scripts/import_mlx.py" \
         "$model_root/moshika-rag-pytorch-bf16.safetensors" \
         "$model_root/moshika-rag-mlx-bf16.safetensors" \
@@ -124,9 +142,11 @@ fi
 HF_HOME="$runtime_root/HuggingFace" \
     TRANSFORMERS_OFFLINE=1 \
     HF_HUB_OFFLINE=1 \
-    "$rag_checkout/.venv/bin/python" -c \
+    PYTHONPATH="$rag_checkout/site-packages" \
+    "$shared_python" -c \
     "import torch; import moshi; assert torch.backends.mps.is_available()"
-"$mlx_checkout/.venv/bin/python" -c "import mlx.core; import moshi_mlx"
+PYTHONPATH="$mlx_checkout/site-packages" \
+    "$shared_python" -c "import mlx.core; import moshi_mlx"
 
 marker="$runtime_root/.vibetalker-voice-runtime"
 {

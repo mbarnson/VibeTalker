@@ -1,7 +1,9 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
+    @State private var selectingVoiceRuntime = false
 
     var body: some View {
         HSplitView {
@@ -20,6 +22,15 @@ struct ContentView: View {
                 }
                 .disabled(model.health == .checking)
                 .accessibilityIdentifier("run-preflight")
+            }
+        }
+        .fileImporter(
+            isPresented: $selectingVoiceRuntime,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let URLs) = result, let URL = URLs.first {
+                model.importVoiceRuntime(from: URL)
             }
         }
     }
@@ -72,6 +83,9 @@ struct ContentView: View {
                     .foregroundStyle(
                         model.referenceAdapterReady ? .green : .secondary
                     )
+                    Text(model.voiceImportStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     ForEach(model.runtimeArtifacts) { artifact in
                         HStack {
                             Image(systemName: artifact.available
@@ -86,6 +100,14 @@ struct ContentView: View {
                     }
 
                     HStack {
+                        Button("Import Staged Runtime…") {
+                            selectingVoiceRuntime = true
+                        }
+                        .disabled(
+                            model.isImportingVoiceRuntime ||
+                            model.referenceAdapterReady
+                        )
+                        .accessibilityIdentifier("import-voice-runtime")
                         Button("Refresh") {
                             model.refreshRuntimeInstallation()
                         }

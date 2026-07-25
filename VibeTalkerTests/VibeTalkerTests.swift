@@ -82,8 +82,8 @@ struct VibeTalkerTests {
         let root = URL(fileURLWithPath: "/tmp/VibeTalker-Runtime-Fixture")
         let installation = RuntimeInstallation(rootURL: root)
 
-        #expect(installation.mlxPythonURL.path.hasSuffix("moshi-mlx/.venv/bin/python"))
-        #expect(installation.ragPythonURL.path.hasSuffix("moshi-rag/.venv/bin/python"))
+        #expect(installation.pythonURL.path.hasSuffix("Python/bin/python3.12"))
+        #expect(installation.mlxPythonURL == installation.ragPythonURL)
         #expect(installation.moshiWeightURL.path.hasSuffix(
             "Models/moshika-rag-mlx-bf16.safetensors"
         ))
@@ -100,10 +100,13 @@ struct VibeTalkerTests {
 
         let installation = RuntimeInstallation(rootURL: root)
         let executableURLs = [
-            installation.mlxPythonURL,
-            installation.ragPythonURL
+            installation.pythonURL
         ]
         let fileURLs = [
+            installation.mlxSitePackagesURL
+                .appending(path: "moshi_mlx/__init__.py"),
+            installation.ragSitePackagesURL
+                .appending(path: "moshi/__init__.py"),
             installation.moshiWeightURL,
             installation.conditionerWeightURL,
             installation.tokenizerURL,
@@ -141,7 +144,97 @@ struct VibeTalkerTests {
         #expect(moshi.environment["LLM_API_KEY"] == "loopback-only")
         #expect(moshi.environment["REFERENCE_ENCODER_URL"] == "http://127.0.0.1:8001")
         #expect(!moshi.environment.keys.contains("OMLX_API_KEY"))
+        #expect(moshi.environment["PYTHONHOME"] == root.appending(path: "Python").path)
+        #expect(moshi.environment["PYTHONPATH"] == installation.mlxSitePackagesURL.path)
+        #expect(conditioner.environment["PYTHONPATH"] == installation.ragSitePackagesURL.path)
+        #expect(moshi.environment["HF_HUB_OFFLINE"] == "1")
         #expect(conditioner.arguments.prefix(2) == ["-m", "moshi.server_conditioner"])
+    }
+
+    @Test func voiceRuntimeImporterMovesValidatedPayloadIntoManagedRoot() throws {
+        let fileManager = FileManager.default
+        let fixture = fileManager.temporaryDirectory
+            .appending(path: "VibeTalker-Voice-Import-\(UUID().uuidString)")
+        let source = fixture.appending(path: "source")
+        let destination = fixture.appending(path: "managed")
+        defer { try? fileManager.removeItem(at: fixture) }
+
+        let sourceInstallation = RuntimeInstallation(rootURL: source)
+        let requiredFiles = [
+            sourceInstallation.mlxSitePackagesURL
+                .appending(path: "moshi_mlx/__init__.py"),
+            sourceInstallation.ragSitePackagesURL
+                .appending(path: "moshi/__init__.py"),
+            sourceInstallation.moshiWeightURL,
+            sourceInstallation.conditionerWeightURL,
+            sourceInstallation.tokenizerURL,
+            sourceInstallation.mimiWeightURL,
+            sourceInstallation.mlxConfigurationURL,
+            sourceInstallation.ragConfigurationURL
+        ]
+        for url in [sourceInstallation.pythonURL] + requiredFiles {
+            try fileManager.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try Data().write(to: url)
+        }
+        try fileManager.setAttributes(
+            [.posixPermissions: 0o700],
+            ofItemAtPath: sourceInstallation.pythonURL.path
+        )
+        try """
+        moshi=\(VoiceRuntimeImporter.moshiRevision)
+        moshi-rag=\(VoiceRuntimeImporter.ragRevision)
+        """.write(
+            to: source.appending(path: ".vibetalker-voice-runtime"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let stale = destination.appending(path: "Models/stale.bin")
+        try fileManager.createDirectory(
+            at: stale.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("stale".utf8).write(to: stale)
+
+        let destinationInstallation = RuntimeInstallation(rootURL: destination)
+        try VoiceRuntimeImporter().importRuntime(
+            from: source,
+            into: destinationInstallation
+        )
+
+        let unavailableArtifacts = destinationInstallation.diagnostics()
+            .filter { !$0.available }
+        #expect(unavailableArtifacts.isEmpty)
+        #expect(!fileManager.fileExists(atPath: stale.path))
+        #expect(fileManager.fileExists(
+            atPath: destination.appending(path: ".vibetalker-voice-runtime").path
+        ))
+    }
+
+    @Test func voiceRuntimeImporterRejectsUnpinnedPayload() throws {
+        let fileManager = FileManager.default
+        let fixture = fileManager.temporaryDirectory
+            .appending(path: "VibeTalker-Voice-Reject-\(UUID().uuidString)")
+        defer { try? fileManager.removeItem(at: fixture) }
+        try fileManager.createDirectory(at: fixture, withIntermediateDirectories: true)
+        try "moshi=mutable-main\nmoshi-rag=mutable-main\n".write(
+            to: fixture.appending(path: ".vibetalker-voice-runtime"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        #expect(throws: VoiceRuntimeImporterError.revisionMismatch) {
+            try VoiceRuntimeImporter().importRuntime(
+                from: fixture,
+                into: RuntimeInstallation(
+                    rootURL: fixture.deletingLastPathComponent()
+                        .appending(path: "managed-\(UUID().uuidString)")
+                )
+            )
+        }
     }
 
     @Test func piLaunchUsesBundledCodeAndMinimalEnvironment() throws {

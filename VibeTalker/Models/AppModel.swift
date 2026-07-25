@@ -32,6 +32,8 @@ final class AppModel {
     var interactionEndpoint = "http://127.0.0.1:8000/v1/responses"
     var interactionModelID = ""
     var referenceAdapterReady = false
+    var isImportingVoiceRuntime = false
+    var voiceImportStatus = "Select a source-built staging folder"
 
     private let ledger = EventLedger()
     private let preflight: NativePreflight
@@ -44,6 +46,7 @@ final class AppModel {
     private let referenceServer: LoopbackReferenceServer
     private let nodeHelperURL: URL
     private let credentialStore: CodingCredentialStore
+    private let voiceRuntimeImporter: VoiceRuntimeImporter
     private var pendingPiOutcome: PiTerminalOutcome?
     private var conversationCoordinator: ConversationCoordinator?
     private var voiceSessionID: UUID?
@@ -53,6 +56,7 @@ final class AppModel {
         processCoordinator: ProcessCoordinator = ProcessCoordinator(),
         runtimeInstallation: RuntimeInstallation? = nil,
         credentialStore: CodingCredentialStore = CodingCredentialStore(),
+        voiceRuntimeImporter: VoiceRuntimeImporter = VoiceRuntimeImporter(),
         nodeHelperURL: URL? = nil
     ) {
         let resolvedInstallation = runtimeInstallation ?? RuntimeInstallation(
@@ -73,6 +77,7 @@ final class AppModel {
         self.referenceAdapter = referenceAdapter
         self.referenceServer = LoopbackReferenceServer(adapter: referenceAdapter)
         self.credentialStore = credentialStore
+        self.voiceRuntimeImporter = voiceRuntimeImporter
         self.nodeHelperURL = nodeHelperURL ?? Bundle.main.bundleURL
             .appending(path: "Contents/Helpers/vibetalker-node")
         self.runtimeArtifacts = resolvedInstallation.diagnostics()
@@ -171,6 +176,49 @@ final class AppModel {
                 await publish(
                     .diagnostic,
                     "Managed voice runtime missing \(missing.count) required artifacts"
+                )
+            }
+        }
+    }
+
+    func importVoiceRuntime(from sourceURL: URL) {
+        guard !isImportingVoiceRuntime else { return }
+        isImportingVoiceRuntime = true
+        voiceImportStatus = "Importing source-built runtime…"
+        let hasSecurityScope = sourceURL.startAccessingSecurityScopedResource()
+        Task { [weak self] in
+            guard let self else {
+                if hasSecurityScope {
+                    sourceURL.stopAccessingSecurityScopedResource()
+                }
+                return
+            }
+            defer {
+                if hasSecurityScope {
+                    sourceURL.stopAccessingSecurityScopedResource()
+                }
+                isImportingVoiceRuntime = false
+            }
+            do {
+                let importer = voiceRuntimeImporter
+                let installation = runtimeInstallation
+                try await Task.detached(priority: .userInitiated) {
+                    try importer.importRuntime(
+                        from: sourceURL,
+                        into: installation
+                    )
+                }.value
+                runtimeArtifacts = installation.diagnostics()
+                voiceImportStatus = "Source-built runtime imported"
+                await publish(
+                    .completion,
+                    "Pinned source-built voice runtime imported into the app container"
+                )
+            } catch {
+                voiceImportStatus = "Import failed"
+                await publish(
+                    .error,
+                    "Voice runtime import failed: \(error.localizedDescription)"
                 )
             }
         }

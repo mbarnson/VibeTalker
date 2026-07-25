@@ -14,10 +14,10 @@ The builder:
 
 1. clones Kyutai Moshi and Moshi-RAG at the pinned revisions;
 2. applies the tracked Apple-Silicon patches under `Patches/`;
-3. requires the accepted CPython 3.12.11 runtime and creates isolated
-   environments with `uv` when available;
-4. installs MLX Moshi and the narrow ARC service dependency set from source
-   using the exact transitive versions in the tracked lock files;
+3. copies the accepted CPython 3.12.11 runtime into the payload so no
+   developer-machine interpreter path survives import;
+4. installs isolated MLX and ARC `site-packages` trees from source using the
+   exact transitive versions in the tracked lock files;
 5. resolves every model and tokenizer at a pinned Hugging Face revision;
 6. reuses revision-addressed local cache files when present;
 7. converts the pinned Moshi-RAG BF16 checkpoint to MLX; and
