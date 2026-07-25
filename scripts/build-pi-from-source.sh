@@ -19,7 +19,15 @@ if [[ "$actual_revision" != "$revision" ]]; then
     exit 1
 fi
 
-npm --prefix "$checkout" install
-npm --prefix "$checkout" run build
+# The root `build` script refreshes generated provider catalogs from mutable
+# third-party APIs before compiling. That makes an old Git revision depend on
+# today's registry contents and has already produced an incompatible type in a
+# pinned checkout. Install the lockfile, then compile the committed catalogs
+# and packages in dependency order.
+npm --prefix "$checkout" ci
+npm --prefix "$checkout/packages/tui" run build
+"$checkout/node_modules/.bin/tsgo" -p "$checkout/packages/ai/tsconfig.build.json"
+npm --prefix "$checkout/packages/agent" run build
+npm --prefix "$checkout/packages/coding-agent" run build
 
 echo "Built pi coding agent from $repository at $revision"

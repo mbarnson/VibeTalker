@@ -1,0 +1,54 @@
+# Gate 5: pinned pi source baseline
+
+Status: **source build and RPC handshake passed; sandboxed coding loop pending**
+
+## Source identity
+
+- Repository: `https://github.com/earendil-works/pi.git`
+- Revision: `5a073885b5f23cd6125cda0927cf50acf2bf22fb`
+- Package: `packages/coding-agent`
+- Integration: the source-built `dist/rpc-entry.js`, not a global or registry
+  pi executable
+
+The revision is pinned in `Dependencies/upstreams.json` and enforced by
+`scripts/build-pi-from-source.sh`.
+
+## Reproducible build decision
+
+The repository root `npm run build` is not revision-pure: the `pi-ai` build
+regenerates provider and image-model catalogs from live external APIs before
+TypeScript compilation. On July 24, 2026, the live OpenCode catalog introduced
+an `openai-responses` API value that the pinned revision's provider type did
+not accept, causing `TS2322`.
+
+VibeTalker therefore installs the pinned lockfile with `npm ci` and compiles
+the committed generated catalogs package-by-package:
+
+1. `packages/tui`
+2. `packages/ai` via the workspace-pinned `tsgo`, without generation
+3. `packages/agent`
+4. `packages/coding-agent`
+
+This produced the executable RPC entry point at
+`packages/coding-agent/dist/rpc-entry.js`.
+
+## RPC handshake
+
+The source-built entry point was launched with an isolated temporary
+`HOME`/`PI_CODING_AGENT_DIR` and all ambient extensions, skills, prompt
+templates, themes, context files, and tools disabled. A correlated JSONL
+command:
+
+```json
+{"id":"smoke-1","type":"get_state"}
+```
+
+returned a successful `get_state` response with the same `smoke-1` identifier,
+an idle session, zero messages, and no configured model. This proves the pinned
+source build and stdin/stdout protocol boundary without sending a provider
+request or loading host configuration.
+
+Gate 5 remains open until the native app embeds the compatible runtime and
+source build, loads only VibeTalker's pinned tool-policy extension, validates
+the registered tool manifest, dispatches a harmless app-container edit, and
+passes the write/network escape fixtures.
