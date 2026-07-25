@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-repository=https://github.com/badlogic/pi-mono.git
-revision=8eef62ed3ea62d646a7fad92fa583fc8d71fec17
+repository=https://github.com/earendil-works/pi.git
+revision=5a073885b5f23cd6125cda0927cf50acf2bf22fb
 checkout="${1:-$PWD/Vendor/pi-mono}"
 
 if [[ ! -d "$checkout/.git" ]]; then

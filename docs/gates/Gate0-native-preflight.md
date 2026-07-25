@@ -67,6 +67,7 @@ and is not claimed by this gate.
 ## pi source policy
 
 Pi will not be taken from a global npm install. `Dependencies/upstreams.json`
-pins the official `badlogic/pi-mono` source revision, and
+pins the PRD-selected `earendil-works/pi` source revision
+`5a073885b5f23cd6125cda0927cf50acf2bf22fb`, and
 `scripts/build-pi-from-source.sh` clones, verifies, and builds that exact
 revision. Packaging and tool-policy integration remain Gate 5 work.
