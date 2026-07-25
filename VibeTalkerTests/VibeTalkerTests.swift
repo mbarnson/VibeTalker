@@ -989,7 +989,7 @@ struct VibeTalkerTests {
         )
         let bridge = MoshiReferenceBridge()
         let deliveredToMoshi = ReferenceCollector()
-        await bridge.setProactiveDeliverySink { delivery in
+        await bridge.setDeliverySink { delivery in
             try await deliveredToMoshi.deliver(delivery)
         }
         let coordinator = ConversationCoordinator(
@@ -1045,10 +1045,51 @@ struct VibeTalkerTests {
         #expect(message["content"] as? String == "Work started in Workspace.")
     }
 
-    @Test func proactiveCompletionReachesMoshiWithoutACommittedUtterance() async throws {
+    @Test func moshiCommittedTranscriptRetryReusesInFlightInteraction() async throws {
+        let interactor = StubInteractor(
+            reference: "Cobalt is the verification color.",
+            piRequest: nil
+        )
         let bridge = MoshiReferenceBridge()
         let deliveredToMoshi = ReferenceCollector()
         await bridge.setDeliverySink { delivery in
+            try await deliveredToMoshi.deliver(delivery)
+        }
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: StubPiDispatcher(
+                receipt: .status(projectName: "Workspace", summary: "Idle")
+            ),
+            referenceDelivery: bridge
+        )
+        let sessionID = UUID()
+        let utteranceID = UUID()
+        await coordinator.beginVoiceSession(sessionID)
+        await bridge.beginSession(sessionID) { utterance in
+            try await coordinator.commit(utterance)
+        }
+
+        async let eager = bridge.commit(
+            utteranceID: utteranceID,
+            revision: 1,
+            transcript: "What is the verification color?"
+        )
+        async let retrievalRetry = bridge.commit(
+            utteranceID: utteranceID,
+            revision: 1,
+            transcript: "What is the verification color?"
+        )
+        let (eagerResult, retryResult) = try await (eager, retrievalRetry)
+
+        #expect(eagerResult == retryResult)
+        #expect(await interactor.callCount() == 1)
+        #expect(await deliveredToMoshi.deliveries().count == 1)
+    }
+
+    @Test func proactiveCompletionReachesMoshiWithoutACommittedUtterance() async throws {
+        let bridge = MoshiReferenceBridge()
+        let deliveredToMoshi = ReferenceCollector()
+        await bridge.setProactiveDeliverySink { delivery in
             try await deliveredToMoshi.deliver(delivery)
         }
         let sessionID = UUID()

@@ -120,7 +120,8 @@ prepare_checkout \
     "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
     "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
     "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
-    "$repo_root/Patches/moshi-mlx-proactive-completion.patch"
+    "$repo_root/Patches/moshi-mlx-proactive-completion.patch" \
+    "$repo_root/Patches/moshi-mlx-retrieval-trigger.patch"
 prepare_checkout \
     "$rag_repository" \
     "$rag_revision" \
@@ -238,6 +239,7 @@ marker="$runtime_root/.vibetalker-voice-runtime"
         "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
         "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
         "$repo_root/Patches/moshi-mlx-proactive-completion.patch" \
+        "$repo_root/Patches/moshi-mlx-retrieval-trigger.patch" \
         "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch" \
         "$repo_root/scripts/convert-moshi-rag-candle-to-mlx.py" \
         "$repo_root/scripts/quantize-moshi-mlx.py" \

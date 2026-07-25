@@ -1,6 +1,6 @@
 # Gate 1: Upstream Moshi-RAG Baseline
 
-Status: **upstream baseline failed; optimized-path investigation in progress**
+Status: **GO through an accepted Apple-Silicon architecture revision**
 
 Recorded 2026-07-24 on the acceptance Mac:
 
@@ -228,8 +228,8 @@ Apple-Silicon topology:
 4. A separate local streaming ASR path, because the MLX web runtime does not
    expose the Rust server's embedded STT.
 
-Gate 1 remains open until this topology is packaged behind the native
-coordinator and the local ASR stream is connected.
+At this checkpoint Gate 1 remained open until this topology was packaged behind
+the native coordinator and the local ASR stream was connected.
 
 ### Reproducible source runtime
 
@@ -292,10 +292,63 @@ The Swift Coordinator bridge now delivers each accepted, coalesced retrieval
 result to that endpoint. MLX consumes the latest tensor and applies one BF16
 ARC frame per inference step.
 
-This closes packaging and dynamic ARC injection. Gate 1 remains open only for
-the separate local streaming ASR path required by the selected MLX topology.
+This closed packaging and dynamic ARC injection. Gate 1 then remained open only
+for the separate local streaming ASR path required by the selected MLX
+topology.
 
 The original Rust/Candle gate remains a recorded failure. The subsequent
 investigation selected the second architecture revision: retain the ARC
 encoder as a supervised sidecar and feed its encoded streaming-sum tensor into
 the converted MLX Moshi-RAG model.
+
+## Accepted optimized topology
+
+The tracked source runtime now completes that deliberate architecture revision:
+
+1. Moshi-RAG BF16 inference and Mimi run in the pinned MLX process.
+2. The source-built ARC Reference encoder runs as a supervised MPS sidecar.
+3. The source-built Rust STT worker receives the same incoming PCM stream as
+   Moshi and emits local streaming word/VAD events.
+4. Committed utterances cross the native coordinator exactly once. Moshi's
+   model-emitted retrieval token is reconciled to the same utterance identity,
+   so the retrieval retry cannot authorize a second Interaction or action.
+
+`scripts/run-gate1-optimized-topology.py` exercises the topology without a Core
+Audio output device: synthesized 24 kHz PCM is sent directly over the Moshi
+WebSocket and returned speech is captured to a file. The accepted BF16 result
+is frozen at
+`Fixtures/Gate1/results/optimized-topology-bf16.json`.
+
+The acceptance run proved:
+
+- local streaming ASR recognized both the initial utterance and a second
+  utterance sent while Moshi audio was active;
+- Moshi produced audio before and after the interruption;
+- model token ID 4 appeared as the explicit `[RET]` protocol marker rather than
+  the erroneous SentencePiece rendering `<0x00>`;
+- the retrieval marker was reconciled to an existing committed utterance with
+  no duplicate transcript POST;
+- a second WebSocket handshake succeeded without restarting any runtime
+  process.
+
+The first Moshi audio arrived in 0.216 seconds. The interruption began at 4.190
+seconds, the retrieval marker arrived at 7.233 seconds, and model audio
+continued through 13.960 seconds. The captured local ASR transcript was:
+
+> Moshe, the first verification word is Canyon. Interrupting now, tell me the
+> verification word lantern.
+
+The pronunciation rendering of the model name does not affect the two
+verification markers. All eight fixture checks passed.
+
+The native bridge separately coalesces concurrent identical commits by
+utterance ID, revision, and transcript. A conflicting retry is rejected, while
+an exact in-flight retry awaits the original Interaction and receives the same
+Reference delivery. This closes the retry race between eager semantic-pause
+commit and a subsequent Moshi retrieval token.
+
+Gate 1 is therefore GO for the selected Apple-Silicon topology. This does not
+rewrite the historical result: the unmodified pinned Rust/Candle backend still
+fails real-time execution on the acceptance Mac, and the product proceeds only
+because the PRD permits a deliberate architecture revision after a failed
+baseline.

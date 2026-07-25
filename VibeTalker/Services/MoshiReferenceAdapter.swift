@@ -69,6 +69,12 @@ actor MoshiReferenceBridge: ReferenceDelivering {
     private var voiceSessionID: UUID?
     private var commitHandler: CommitHandler?
     private var deliveredByUtterance: [UUID: ReferenceDelivery] = [:]
+    private struct CachedCommit {
+        let revision: UInt64
+        let transcript: String
+        let task: Task<ReferenceDelivery, Error>
+    }
+    private var commitsByUtterance: [UUID: CachedCommit] = [:]
     private var deliverySink: @Sendable (ReferenceDelivery) async throws -> Void = { _ in }
     private var proactiveDeliverySink:
         @Sendable (ReferenceDelivery) async throws -> Void = { _ in
@@ -102,12 +108,20 @@ actor MoshiReferenceBridge: ReferenceDelivering {
         self.voiceSessionID = voiceSessionID
         commitHandler = commit
         deliveredByUtterance.removeAll()
+        for cached in commitsByUtterance.values {
+            cached.task.cancel()
+        }
+        commitsByUtterance.removeAll()
     }
 
     func endSession() {
         voiceSessionID = nil
         commitHandler = nil
         deliveredByUtterance.removeAll()
+        for cached in commitsByUtterance.values {
+            cached.task.cancel()
+        }
+        commitsByUtterance.removeAll()
     }
 
     func deliver(_ delivery: ReferenceDelivery) async throws {
@@ -142,6 +156,13 @@ actor MoshiReferenceBridge: ReferenceDelivering {
         guard let voiceSessionID, let commitHandler else {
             throw MoshiReferenceAdapterError.inactiveSession
         }
+        if let cached = commitsByUtterance[utteranceID] {
+            guard cached.revision == revision,
+                  cached.transcript == transcript else {
+                throw MoshiReferenceAdapterError.invalidRequest
+            }
+            return try await cached.task.value
+        }
         let utterance = CommittedUtterance(
             voiceSessionID: voiceSessionID,
             utteranceID: utteranceID,
@@ -149,8 +170,29 @@ actor MoshiReferenceBridge: ReferenceDelivering {
             transcript: transcript
         )
         await events(.transcript, "Committed ASR: \(transcript)")
-        let turn = try await commitHandler(utterance)
-        guard deliveredByUtterance.removeValue(forKey: utterance.utteranceID)
+        let task = Task {
+            let turn = try await commitHandler(utterance)
+            return try finishCommit(turn, for: utterance.utteranceID)
+        }
+        commitsByUtterance[utteranceID] = CachedCommit(
+            revision: revision,
+            transcript: transcript,
+            task: task
+        )
+        do {
+            return try await task.value
+        } catch {
+            commitsByUtterance.removeValue(forKey: utteranceID)
+            deliveredByUtterance.removeValue(forKey: utteranceID)
+            throw error
+        }
+    }
+
+    private func finishCommit(
+        _ turn: CoordinatedTurn,
+        for utteranceID: UUID
+    ) throws -> ReferenceDelivery {
+        guard deliveredByUtterance.removeValue(forKey: utteranceID)
                 == turn.reference else {
             throw MoshiReferenceAdapterError.referenceNotDelivered
         }

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "precision": "bf16",
+  "protocol": {
+    "transport": "direct WebSocket PCM; no Core Audio output device",
+    "first_prompt": "Moshi, the first verification word is canyon.",
+    "barge_in_prompt": "Interrupting now. Tell me the verification word lantern.",
+    "capture_seconds": 14.0
+  },
+  "asr": "Moshe, the first verification word is Canyon. Interrupting now, tell me the verification word lantern.",
+  "model_text": "this is moshi. How can I help? That's right![RET] Sure thing! It's another word for \"holy ground\". It comes from the Scottish Gaelic word \"cannion\",",
+  "interruption_started_seconds": 4.189769541029818,
+  "first_audio_seconds": 0.21607199998106807,
+  "last_audio_seconds": 13.960204250062816,
+  "retrieval_token_seconds": [
+    7.232669541030191
+  ],
+  "transcript_requests": [
+    {
+      "utterance_id": "a356745a-d6b8-4a36-b13e-521b9fa395ac",
+      "revision": 1,
+      "transcript": "Moshe, the first verification word is Canyon.",
+      "committed": true,
+      "received_at": 942285.396322791
+    },
+    {
+      "utterance_id": "3caaef73-5856-4226-a447-aa538e0917e1",
+      "revision": 1,
+      "transcript": "Interrupting now, tell me the",
+      "committed": true,
+      "received_at": 942288.791101791
+    }
+  ],
+  "duplicate_transcript_posts": 0,
+  "retrieval_reconciliations": 1,
+  "retrieval_reuses": 0,
+  "audio_output": "tmp/Gate1-audio/barge-in-response.wav",
+  "audio_sha256": "95760326bbffd86db4ec34d512714ec0b4723ab9eba9173172396615ffff98b9",
+  "audio_duration_seconds": 13.6,
+  "checks": {
+    "local_asr_first_utterance": true,
+    "local_asr_barge_in": true,
+    "model_audio_before_barge_in": true,
+    "model_audio_after_barge_in": true,
+    "retrieval_token_observed": true,
+    "retrieval_reconciled": true,
+    "no_duplicate_transcript_posts": true,
+    "reconnect_without_restart": true
+  },
+  "gate_passed": true
+}

@@ -1,0 +1,142 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index 2e89cc9..c1ec2fd 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -165,6 +165,11 @@ def model_server(
+ 
+     log("info", f"[SERVER] loading text tokenizer {tokenizer_file}")
+     text_tokenizer = sentencepiece.SentencePieceProcessor(tokenizer_file)  # type: ignore
++    rag_token_id = (
++        lm_config.get("rag_token_id")
++        if type(lm_config) is dict
++        else getattr(lm_config, "rag_token_id", None)
++    )
+     mx.random.seed(299792458)
+     if type(lm_config) is dict:
+         lm_config = models.LmConfig.from_config_dict(lm_config)
+@@ -249,7 +254,10 @@ def model_server(
+             text_token = gen.step(data, ct=step_condition)
+             text_token = text_token[0].item()
+             audio_tokens = gen.last_audio_tokens()
+-            if text_token not in (0, 3):
++            if text_token == rag_token_id:
++                server_to_client.send((2, "[RET]"))
++                log("info", "[SERVER] emitted retrieval trigger")
++            elif text_token not in (0, 3):
+                 _text = text_tokenizer.id_to_piece(text_token)  # type: ignore
+                 _text = _text.replace("▁", " ")
+                 server_to_client.send((1, _text))
+@@ -279,6 +287,7 @@ def web_server(
+     input_queue = queue.Queue()
+     output_queue = queue.Queue()
+     text_queue = queue.Queue()
++    retrieval_queue = queue.Queue()
+     if type(lm_config) is dict:
+         nc = lm_config.get("dep_q", 8)
+         max_delay = max(lm_config["delays"])
+@@ -335,12 +344,15 @@ def web_server(
+                     audio_tokenizer.decode(data)
+                 elif kind == 1:
+                     text_queue.put_nowait(data)
++                elif kind == 2:
++                    retrieval_queue.put_nowait(None)
++                    text_queue.put_nowait(data)
+                 await asyncio.sleep(0)
+             else:
+                 await asyncio.sleep(0.001)
+ 
+     lock = asyncio.Lock()
+-    transcript_tasks: set[asyncio.Task] = set()
++    transcript_tasks: dict[str, tuple[str, asyncio.Task]] = {}
+ 
+     async def post_transcript(utterance_id: str, transcript: str):
+         payload = {
+@@ -356,36 +368,75 @@ def web_server(
+                     async with session.post(args.transcript_url, json=payload) as response:
+                         response.raise_for_status()
+                 log("info", f"committed ASR utterance {utterance_id}: {transcript!r}")
+-                return
++                return True
+             except (aiohttp.ClientError, TimeoutError) as exc:
+                 if attempt == 2:
+                     log("error", f"transcript commit failed: {exc}")
+-                    return
++                    return False
+                 await asyncio.sleep(0.1 * (attempt + 1))
+ 
+     def schedule_transcript_commit(utterance_id: str, transcript: str):
++        existing = transcript_tasks.get(utterance_id)
++        if existing is not None:
++            existing_transcript, _ = existing
++            if existing_transcript == transcript:
++                log("info", f"reused ASR utterance {utterance_id}")
++            else:
++                log("error", f"rejected conflicting ASR utterance {utterance_id}")
++            return
+         task = asyncio.create_task(post_transcript(utterance_id, transcript))
+-        transcript_tasks.add(task)
+-        task.add_done_callback(transcript_tasks.discard)
++        transcript_tasks[utterance_id] = (transcript, task)
++
++        def finished(completed):
++            try:
++                succeeded = not completed.cancelled() and completed.result()
++            except Exception:
++                succeeded = False
++            if not succeeded:
++                transcript_tasks.pop(utterance_id, None)
++
++        task.add_done_callback(finished)
+ 
+     async def handle_chat(request):
+         ws = web.WebSocketResponse()
+         await ws.prepare(request)
+         word_parts: list[str] = []
+         utterance_id = str(uuid.uuid4())
++        latest_committed: tuple[str, str] | None = None
+         speech_seen = False
+         silence_steps = 0
+ 
+         def commit_current_transcript():
+-            nonlocal utterance_id, speech_seen, silence_steps
++            nonlocal utterance_id, latest_committed, speech_seen, silence_steps
+             transcript = "".join(word_parts).strip()
+             if transcript:
+                 schedule_transcript_commit(utterance_id, transcript)
++                latest_committed = (utterance_id, transcript)
+             word_parts.clear()
+             utterance_id = str(uuid.uuid4())
+             speech_seen = False
+             silence_steps = 0
+ 
++        async def retrieval_loop():
++            while not close:
++                try:
++                    retrieval_queue.get_nowait()
++                except queue.Empty:
++                    await asyncio.sleep(0.001)
++                    continue
++                transcript = "".join(word_parts).strip()
++                retrieval = (
++                    (utterance_id, transcript)
++                    if transcript
++                    else latest_committed
++                )
++                if retrieval is None:
++                    log("warning", "ignored retrieval trigger without ASR context")
++                    continue
++                retrieval_id, retrieval_transcript = retrieval
++                schedule_transcript_commit(retrieval_id, retrieval_transcript)
++                log("info", f"reconciled retrieval trigger {retrieval_id}")
++
+         async def recv_loop(stt_ws):
+             nonlocal close
+             all_pcm_data = None
+@@ -513,6 +564,7 @@ def web_server(
+                         asyncio.create_task(recv_loop(stt_ws)),
+                         asyncio.create_task(stt_recv_loop(stt_ws)),
+                         asyncio.create_task(send_loop()),
++                        asyncio.create_task(retrieval_loop()),
+                     }
+                     done, pending = await asyncio.wait(
+                         tasks,
