@@ -92,6 +92,49 @@ struct VibeTalkerTests {
         }
     }
 
+    @Test func piLaunchUsesBundledCodeAndMinimalEnvironment() throws {
+        let fixture = FileManager.default.temporaryDirectory
+            .appending(path: "VibeTalker-Pi-Fixture-\(UUID().uuidString)")
+        let managedRoot = fixture.appending(path: "managed")
+        let bundledRoot = fixture.appending(path: "bundled")
+        let piRoot = bundledRoot.appending(path: "pi")
+        let rpcEntry = piRoot.appending(path: "packages/coding-agent/dist/rpc-entry.js")
+        let policy = piRoot.appending(path: "vibetalker-tool-policy.ts")
+        defer { try? FileManager.default.removeItem(at: fixture) }
+
+        try FileManager.default.createDirectory(
+            at: rpcEntry.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data().write(to: rpcEntry)
+        try Data().write(to: policy)
+
+        let installation = RuntimeInstallation(
+            rootURL: managedRoot,
+            bundledRuntimeRootURL: bundledRoot
+        )
+        let spec = try installation.piLaunchSpec(
+            nodeURL: URL(fileURLWithPath: "/bin/sh")
+        )
+
+        #expect(spec.executableURL.path == "/bin/sh")
+        #expect(spec.arguments.first == rpcEntry.path)
+        #expect(spec.arguments.contains(policy.path))
+        #expect(spec.workingDirectoryURL.path.hasPrefix(managedRoot.deletingLastPathComponent().path))
+        #expect(Set(spec.environment.keys) == Set([
+            "HOME",
+            "NODE_NO_WARNINGS",
+            "OPENSSL_CONF",
+            "PATH",
+            "PI_CODING_AGENT_DIR",
+            "TMPDIR"
+        ]))
+        #expect(spec.environment["OPENSSL_CONF"] == "/dev/null")
+        #expect(spec.environment["HOME"] == managedRoot.path)
+        #expect(spec.environment["PI_CODING_AGENT_DIR"] == managedRoot
+            .appending(path: "PiConfig").path)
+    }
+
     @Test func interactionValidatorRejectsStaleAndPartialOutput() throws {
         let utterance = CommittedUtterance(
             voiceSessionID: UUID(),

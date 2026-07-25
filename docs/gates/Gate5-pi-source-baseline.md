@@ -64,8 +64,32 @@ inside the workspace and `/private/tmp` and denies networking.
 The build script installs the extension and its manifest alongside the pinned
 pi checkout. In the isolated RPC fixture, pi loaded only this explicit
 extension, reported all seven expected overrides with no missing or unknown
-tools, and then completed a correlated `get_state` request. Model-driven
-write/network escape fixtures remain required before Gate 5 passes.
+tools, and then completed a correlated `get_state` request.
+
+`scripts/test-pi-tool-policy.mjs` imports that installed extension with the
+same embedded Node executable used by the app, captures the tools registered
+through pi's real extension API, and directly exercises their production
+`execute` functions. The fixture passed all of the following:
+
+- exact seven-tool manifest;
+- ordinary file-tool write inside the workspace;
+- absolute file-tool write outside the workspace denied;
+- file-tool write through an in-workspace symlink to an outside directory
+  denied;
+- command-tool write inside the workspace;
+- command-tool write to `/private/var/tmp` denied; and
+- command-tool outbound TCP connection denied.
+
+Gate 0 separately proves the outer App Sandbox and inherited child boundary
+from within the signed app. A Swift launch-contract test additionally fixes
+the pi environment to exactly `HOME`, `NODE_NO_WARNINGS`, `OPENSSL_CONF`,
+`PATH`, `PI_CODING_AGENT_DIR`, and `TMPDIR`; ambient provider and host
+credentials are not copied into the child.
+
+These deterministic tool-boundary proofs pass without trusting a model to
+choose a particular exploit. The remaining Gate 5 work is the configured-model
+coding loop: natural request, harmless app-container edit, grounded status,
+window reopen continuity, abort/completion behavior, and spoken completion.
 
 ## Signed native-app checkpoint
 
