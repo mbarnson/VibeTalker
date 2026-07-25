@@ -91,6 +91,59 @@ struct VibeTalkerTests {
             _ = try installation.voiceLaunchSpecs()
         }
     }
+
+    @Test func interactionValidatorRejectsStaleAndPartialOutput() throws {
+        let utterance = CommittedUtterance(
+            voiceSessionID: UUID(),
+            utteranceID: UUID(),
+            revision: 1,
+            transcript: "Please update the README."
+        )
+
+        #expect(throws: InteractionValidationError.staleUtterance) {
+            try InteractionValidator.validate(
+                InteractionOutput(
+                    utteranceID: UUID(),
+                    referenceResponse: "I can help with that.",
+                    piRequest: nil
+                ),
+                for: utterance
+            )
+        }
+        #expect(throws: InteractionValidationError.invalidPiRequest) {
+            try InteractionValidator.validate(
+                InteractionOutput(
+                    utteranceID: utterance.utteranceID,
+                    referenceResponse: "I can help with that.",
+                    piRequest: PiRequest(operation: .start, instruction: nil)
+                ),
+                for: utterance
+            )
+        }
+    }
+
+    @Test func interactionValidatorNormalizesACompleteResult() throws {
+        let utterance = CommittedUtterance(
+            voiceSessionID: UUID(),
+            utteranceID: UUID(),
+            revision: 7,
+            transcript: "Please update the README."
+        )
+        let result = try InteractionValidator.validate(
+            InteractionOutput(
+                utteranceID: utterance.utteranceID,
+                referenceResponse: "  The request concerns the selected project.  ",
+                piRequest: PiRequest(
+                    operation: .start,
+                    instruction: "  Update README and verify the diff.  "
+                )
+            ),
+            for: utterance
+        )
+
+        #expect(result.referenceResponse == "The request concerns the selected project.")
+        #expect(result.piRequest?.instruction == "Update README and verify the diff.")
+    }
 }
 
 private actor RuntimeEventCollector {

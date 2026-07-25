@@ -61,13 +61,15 @@ final class AppModel {
             return
         }
 
-        Task {
+        let eventSink: ProcessCoordinator.EventSink = { [weak self] event in
+            await self?.publishRuntime(event)
+        }
+        Task { [weak self] in
+            guard let self else { return }
             do {
                 let specs = try runtimeInstallation.voiceLaunchSpecs()
                 for spec in specs {
-                    try await processCoordinator.start(spec) { [weak self] event in
-                        await self?.publishRuntime(event)
-                    }
+                    try await processCoordinator.start(spec, events: eventSink)
                     runtimeStates = await processCoordinator.snapshot()
                 }
                 await publish(.completion, "Local MLX Moshi-RAG topology started")

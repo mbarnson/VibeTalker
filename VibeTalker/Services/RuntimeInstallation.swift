@@ -1,6 +1,6 @@
 import Foundation
 
-struct RuntimeInstallation: Sendable {
+nonisolated struct RuntimeInstallation: Sendable {
     let rootURL: URL
 
     init(rootURL: URL? = nil) {
@@ -148,14 +148,14 @@ struct RuntimeInstallation: Sendable {
     }
 }
 
-struct RuntimeArtifactDiagnostic: Identifiable, Sendable {
+nonisolated struct RuntimeArtifactDiagnostic: Identifiable, Sendable {
     var id: String { url.path }
     let label: String
     let url: URL
     let available: Bool
 }
 
-enum RuntimeInstallationError: LocalizedError, Equatable {
+nonisolated enum RuntimeInstallationError: LocalizedError, Equatable {
     case missingArtifacts([String])
 
     var errorDescription: String? {
