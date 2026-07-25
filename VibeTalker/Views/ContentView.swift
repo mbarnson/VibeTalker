@@ -36,247 +36,254 @@ struct ContentView: View {
     }
 
     private var conversationPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Conversation")
-                        .font(.title2.weight(.semibold))
-                    Text("Moshi voice surface and native coordinator")
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                HealthBadge(health: model.health)
-            }
-
-            GroupBox("Native preflight") {
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
-                    diagnosticRow("Helper stdio", model.helperRoundTrip)
-                    diagnosticRow("Node runtime", model.jitStatus)
-                    diagnosticRow("Nested sandbox", model.sandboxStatus)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
-            }
-
-            GroupBox("Managed local voice runtime") {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Picker(
-                            "Interaction provider",
-                            selection: Bindable(model).interactionProvider
-                        ) {
-                            ForEach(InteractionProvider.allCases) { provider in
-                                Text(provider.displayName).tag(provider)
-                            }
-                        }
-                        .labelsHidden()
-                        .onChange(of: model.interactionProvider) {
-                            model.interactionEndpoint =
-                                model.interactionProvider.defaultEndpoint
-                            model.interactionModelID =
-                                model.interactionProvider.defaultModelID
-                            model.interactionCredentialInput = ""
-                            model.refreshInteractionCredentialStatus()
-                        }
-                        Spacer()
-                        Label(
-                            model.interactionCredentialSource,
-                            systemImage: model.interactionCredentialConfigured
-                                ? "key.fill"
-                                : "key"
-                        )
-                        .foregroundStyle(
-                            model.interactionCredentialConfigured ? .green : .secondary
-                        )
-                    }
-                    TextField(
-                        "Responses endpoint",
-                        text: Bindable(model).interactionEndpoint
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("interaction-endpoint")
-                    TextField(
-                        "Interaction model ID",
-                        text: Bindable(model).interactionModelID
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("interaction-model-id")
-                    Label(
-                        model.interactionProvider.releaseGuidance,
-                        systemImage: model.interactionProvider == .openAIResponses
-                            ? "checkmark.shield"
-                            : "exclamationmark.triangle"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(
-                        model.interactionProvider == .openAIResponses
-                            ? Color.secondary
-                            : Color.orange
-                    )
-                    HStack {
-                        SecureField(
-                            "\(model.interactionProvider.displayName) API key",
-                            text: Bindable(model).interactionCredentialInput
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("interaction-api-key")
-                        Button("Save") {
-                            model.saveInteractionCredential()
-                        }
-                        .disabled(model.interactionCredentialInput
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                            .isEmpty)
-                        Button("Remove") {
-                            model.deleteInteractionCredential()
-                        }
-                        .disabled(!model.interactionCredentialStoredInKeychain)
-                    }
-                    Label(
-                        model.referenceAdapterReady
-                            ? "Coordinator adapter ready"
-                            : "Coordinator adapter stopped",
-                        systemImage: model.referenceAdapterReady
-                            ? "bolt.horizontal.circle.fill"
-                            : "bolt.horizontal.circle"
-                    )
-                    .foregroundStyle(
-                        model.referenceAdapterReady ? .green : .secondary
-                    )
-                    Text(model.voiceImportStatus)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ForEach(model.runtimeArtifacts) { artifact in
-                        HStack {
-                            Image(systemName: artifact.available
-                                ? "checkmark.circle.fill"
-                                : "xmark.circle")
-                                .foregroundStyle(artifact.available ? .green : .secondary)
-                            Text(artifact.label)
-                            Spacer()
-                            Text(artifact.available ? "Ready" : "Missing")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    HStack {
-                        Button("Import Staged Runtime…") {
-                            selectingVoiceRuntime = true
-                        }
-                        .disabled(
-                            model.isImportingVoiceRuntime ||
-                            model.referenceAdapterReady
-                        )
-                        .accessibilityIdentifier("import-voice-runtime")
-                        Button("Refresh") {
-                            model.refreshRuntimeInstallation()
-                        }
-                        Spacer()
-                        Button("Stop") {
-                            model.stopVoiceRuntime()
-                        }
-                        Button("Start Local Voice") {
-                            model.startVoiceRuntime()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(
-                            model.health != .ready ||
-                            model.runtimeArtifacts.contains(where: { !$0.available })
-                        )
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            GroupBox("Pinned pi runtime") {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(model.piArtifacts) { artifact in
-                        HStack {
-                            Image(systemName: artifact.available
-                                ? "checkmark.circle.fill"
-                                : "xmark.circle")
-                                .foregroundStyle(artifact.available ? .green : .secondary)
-                            Text(artifact.label)
-                            Spacer()
-                            Text(artifact.available ? "Ready" : "Missing")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    HStack {
-                        Text(model.piRPCReady ? "RPC connected" : "RPC stopped")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Conversation")
+                            .font(.title2.weight(.semibold))
+                        Text("Moshi voice surface and native coordinator")
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Stop Pi") { model.stopPiRuntime() }
-                        Button("Start Pi") { model.startPiRuntime() }
-                            .disabled(
-                                model.health != .ready ||
-                                model.piArtifacts.contains(where: { !$0.available })
-                            )
                     }
-                    Divider()
-                    HStack {
-                        Picker(
-                            "Coding provider",
-                            selection: Bindable(model).codingProvider
-                        ) {
-                            ForEach(CodingProvider.allCases) { provider in
-                                Text(provider.displayName).tag(provider)
+                    Spacer()
+                    HealthBadge(health: model.health)
+                }
+
+                GroupBox("Native preflight") {
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 10) {
+                        diagnosticRow("Helper stdio", model.helperRoundTrip)
+                        diagnosticRow("Node runtime", model.jitStatus)
+                        diagnosticRow("Nested sandbox", model.sandboxStatus)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
+
+                GroupBox("Managed local voice runtime") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Picker(
+                                "Interaction provider",
+                                selection: Bindable(model).interactionProvider
+                            ) {
+                                ForEach(InteractionProvider.allCases) { provider in
+                                    Text(provider.displayName).tag(provider)
+                                }
                             }
+                            .labelsHidden()
+                            .onChange(of: model.interactionProvider) {
+                                model.interactionEndpoint =
+                                    model.interactionProvider.defaultEndpoint
+                                model.interactionModelID =
+                                    model.interactionProvider.defaultModelID
+                                model.interactionCredentialInput = ""
+                                model.refreshInteractionCredentialStatus()
+                            }
+                            Spacer()
+                            Label(
+                                model.interactionCredentialSource,
+                                systemImage: model.interactionCredentialConfigured
+                                    ? "key.fill"
+                                    : "key"
+                            )
+                            .foregroundStyle(
+                                model.interactionCredentialConfigured ? .green : .secondary
+                            )
                         }
-                        .labelsHidden()
-                        .onChange(of: model.codingProvider) {
-                            model.codingCredentialInput = ""
-                            model.refreshCodingCredentialStatus()
-                        }
-                        Spacer()
+                        TextField(
+                            "Responses endpoint",
+                            text: Bindable(model).interactionEndpoint
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("interaction-endpoint")
+                        TextField(
+                            "Interaction model ID",
+                            text: Bindable(model).interactionModelID
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("interaction-model-id")
                         Label(
-                            model.codingCredentialSource,
-                            systemImage: model.codingCredentialConfigured
-                                ? "key.fill"
-                                : "key"
+                            model.interactionProvider.releaseGuidance,
+                            systemImage: model.interactionProvider == .openAIResponses
+                                ? "checkmark.shield"
+                                : "exclamationmark.triangle"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(
+                            model.interactionProvider == .openAIResponses
+                                ? Color.secondary
+                                : Color.orange
+                        )
+                        HStack {
+                            SecureField(
+                                "\(model.interactionProvider.displayName) API key",
+                                text: Bindable(model).interactionCredentialInput
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("interaction-api-key")
+                            Button("Save") {
+                                model.saveInteractionCredential()
+                            }
+                            .disabled(
+                                model.interactionCredentialInput
+                                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                                    .isEmpty)
+                            Button("Remove") {
+                                model.deleteInteractionCredential()
+                            }
+                            .disabled(!model.interactionCredentialStoredInKeychain)
+                        }
+                        Label(
+                            model.referenceAdapterReady
+                                ? "Coordinator adapter ready"
+                                : "Coordinator adapter stopped",
+                            systemImage: model.referenceAdapterReady
+                                ? "bolt.horizontal.circle.fill"
+                                : "bolt.horizontal.circle"
                         )
                         .foregroundStyle(
-                            model.codingCredentialConfigured ? .green : .secondary
+                            model.referenceAdapterReady ? .green : .secondary
                         )
-                    }
-                    if model.codingProvider.customPiAPI != nil {
-                        TextField(
-                            "Base URL (for example http://127.0.0.1:8000/v1)",
-                            text: Bindable(model).codingBaseURL
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("coding-base-url")
-                        TextField(
-                            "Model ID served by the compatible endpoint",
-                            text: Bindable(model).codingModelID
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("coding-model-id")
-                    }
-                    HStack {
-                        SecureField(
-                            "\(model.codingProvider.displayName) API key",
-                            text: Bindable(model).codingCredentialInput
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("coding-api-key")
-                        Button("Save") {
-                            model.saveCodingCredential()
+                        Text(model.voiceImportStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ForEach(model.runtimeArtifacts) { artifact in
+                            HStack {
+                                Image(
+                                    systemName: artifact.available
+                                        ? "checkmark.circle.fill"
+                                        : "xmark.circle"
+                                )
+                                .foregroundStyle(artifact.available ? .green : .secondary)
+                                Text(artifact.label)
+                                Spacer()
+                                Text(artifact.available ? "Ready" : "Missing")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        .disabled(model.codingCredentialInput
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                            .isEmpty)
-                        Button("Remove") {
-                            model.deleteCodingCredential()
-                        }
-                        .disabled(!model.codingCredentialStoredInKeychain)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
 
-            Spacer()
+                        HStack {
+                            Button("Import Staged Runtime…") {
+                                selectingVoiceRuntime = true
+                            }
+                            .disabled(
+                                model.isImportingVoiceRuntime || model.referenceAdapterReady
+                            )
+                            .accessibilityIdentifier("import-voice-runtime")
+                            Button("Refresh") {
+                                model.refreshRuntimeInstallation()
+                            }
+                            Spacer()
+                            Button("Stop") {
+                                model.stopVoiceRuntime()
+                            }
+                            Button("Start Local Voice") {
+                                model.startVoiceRuntime()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(
+                                model.health != .ready
+                                    || model.runtimeArtifacts.contains(where: { !$0.available })
+                            )
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                GroupBox("Pinned pi runtime") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(model.piArtifacts) { artifact in
+                            HStack {
+                                Image(
+                                    systemName: artifact.available
+                                        ? "checkmark.circle.fill"
+                                        : "xmark.circle"
+                                )
+                                .foregroundStyle(artifact.available ? .green : .secondary)
+                                Text(artifact.label)
+                                Spacer()
+                                Text(artifact.available ? "Ready" : "Missing")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        HStack {
+                            Text(model.piRPCReady ? "RPC connected" : "RPC stopped")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Stop Pi") { model.stopPiRuntime() }
+                            Button("Start Pi") { model.startPiRuntime() }
+                                .disabled(
+                                    model.health != .ready
+                                        || model.piArtifacts.contains(where: { !$0.available })
+                                )
+                        }
+                        Divider()
+                        HStack {
+                            Picker(
+                                "Coding provider",
+                                selection: Bindable(model).codingProvider
+                            ) {
+                                ForEach(CodingProvider.allCases) { provider in
+                                    Text(provider.displayName).tag(provider)
+                                }
+                            }
+                            .labelsHidden()
+                            .onChange(of: model.codingProvider) {
+                                model.codingCredentialInput = ""
+                                model.refreshCodingCredentialStatus()
+                            }
+                            Spacer()
+                            Label(
+                                model.codingCredentialSource,
+                                systemImage: model.codingCredentialConfigured
+                                    ? "key.fill"
+                                    : "key"
+                            )
+                            .foregroundStyle(
+                                model.codingCredentialConfigured ? .green : .secondary
+                            )
+                        }
+                        if model.codingProvider.customPiAPI != nil {
+                            TextField(
+                                "Base URL (for example http://127.0.0.1:8000/v1)",
+                                text: Bindable(model).codingBaseURL
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("coding-base-url")
+                            TextField(
+                                "Model ID served by the compatible endpoint",
+                                text: Bindable(model).codingModelID
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("coding-model-id")
+                        }
+                        HStack {
+                            SecureField(
+                                "\(model.codingProvider.displayName) API key",
+                                text: Bindable(model).codingCredentialInput
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("coding-api-key")
+                            Button("Save") {
+                                model.saveCodingCredential()
+                            }
+                            .disabled(
+                                model.codingCredentialInput
+                                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                                    .isEmpty)
+                            Button("Remove") {
+                                model.deleteCodingCredential()
+                            }
+                            .disabled(!model.codingCredentialStoredInKeychain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Spacer()
+            }
+            .padding(20)
         }
-        .padding(20)
     }
 
     private var consolePanel: some View {

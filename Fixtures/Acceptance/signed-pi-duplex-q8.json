@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "protocol": {
+    "host": "signed Xcode VibeTalker product",
+    "transport": "direct WebSocket PCM; no Core Audio output device",
+    "precision": "q8",
+    "duration_seconds": 600.0,
+    "prompt_interval_seconds": 60.0,
+    "markers": [
+      "canyon",
+      "lantern",
+      "orchard",
+      "velvet",
+      "copper",
+      "meadow",
+      "harbor",
+      "comet",
+      "willow",
+      "cobalt"
+    ],
+    "coding_task": "Create a file named signed-duplex-probe.txt containing exactly signed duplex acceptance, then read it back to verify. Do not modify any other file."
+  },
+  "elapsed_seconds": 601.1777113750577,
+  "input_asr": "Moshe, signed duplex marker Canyon, answer briefly and keep listening. Moshe, signed duplex marker lantern, answer briefly and keep listening. Moshe, signed duplex marker orchard, answer briefly and keep listening. Moshe, signed duplex marker velvet, answer briefly and keep listening. Moshe, signed duplex marker copper, answer briefly and keep listening. Moshe, signed duplex marker meadow, answer briefly and keep listening. Moshe, signed duplex marker harbor, answer briefly and keep listening. Moshe, signed duplex marker comet, answer briefly and keep listening. Moshe, signed duplex marker willow, answer briefly and keep listening. Moshe, signed duplex marker COVALD, answer briefly and keep listening.",
+  "recognized_markers": [
+    "canyon",
+    "lantern",
+    "orchard",
+    "velvet",
+    "copper",
+    "meadow",
+    "harbor",
+    "comet",
+    "willow"
+  ],
+  "prompt_starts": [
+    {
+      "marker": "canyon",
+      "seconds": 2.5166082195937634e-05
+    },
+    {
+      "marker": "lantern",
+      "seconds": 60.94503920804709
+    },
+    {
+      "marker": "orchard",
+      "seconds": 120.976977540995
+    },
+    {
+      "marker": "velvet",
+      "seconds": 180.90516462503
+    },
+    {
+      "marker": "copper",
+      "seconds": 241.16808833309915
+    },
+    {
+      "marker": "meadow",
+      "seconds": 301.177323791082
+    },
+    {
+      "marker": "harbor",
+      "seconds": 360.908760374994
+    },
+    {
+      "marker": "comet",
+      "seconds": 420.89480591600295
+    },
+    {
+      "marker": "willow",
+      "seconds": 480.89459445804823
+    },
+    {
+      "marker": "cobalt",
+      "seconds": 540.8687842080835
+    }
+  ],
+  "active_output_interruptions": [
+    {
+      "marker": "lantern",
+      "seconds": 60.94503920804709
+    },
+    {
+      "marker": "orchard",
+      "seconds": 120.976977540995
+    },
+    {
+      "marker": "velvet",
+      "seconds": 180.90516462503
+    },
+    {
+      "marker": "copper",
+      "seconds": 241.16808833309915
+    },
+    {
+      "marker": "meadow",
+      "seconds": 301.177323791082
+    },
+    {
+      "marker": "harbor",
+      "seconds": 360.908760374994
+    },
+    {
+      "marker": "comet",
+      "seconds": 420.89480591600295
+    },
+    {
+      "marker": "willow",
+      "seconds": 480.89459445804823
+    },
+    {
+      "marker": "cobalt",
+      "seconds": 540.8687842080835
+    }
+  ],
+  "coordinator_events": [
+    {
+      "role": "coding_task",
+      "utterance_id": "58044e47-c6ec-4d21-845a-5cdb3288a40c",
+      "transcript": "Create a file named signed-duplex-probe.txt containing exactly signed duplex acceptance, then read it back to verify. Do not modify any other file.",
+      "status": 200,
+      "response": {
+        "interaction_request_id": "C3EE4E0B-D6A7-467F-8392-A4D02DC33188",
+        "utterance_id": "58044E47-C6EC-4D21-845A-5CDB3288A40C",
+        "accepted": true
+      },
+      "accepted": true,
+      "elapsed_seconds": 1.4367452079895884,
+      "scheduled_seconds": 15.0,
+      "completed_seconds": 16.437942541087978
+    },
+    {
+      "role": "status",
+      "utterance_id": "2b87c91e-628e-445c-9445-9c78ca60acaa",
+      "transcript": "What is the current coding task status?",
+      "status": 200,
+      "response": {
+        "interaction_request_id": "59A63DB8-0689-49EA-A798-8825004A32C0",
+        "accepted": true,
+        "utterance_id": "2B87C91E-628E-445C-9445-9C78CA60ACAA"
+      },
+      "accepted": true,
+      "elapsed_seconds": 1.3963674590922892,
+      "scheduled_seconds": 120.0,
+      "completed_seconds": 121.39717979100533
+    },
+    {
+      "role": "status",
+      "utterance_id": "cf27aef6-8d66-49ff-9aa2-cbdcb60c44d4",
+      "transcript": "Give me the grounded status of pi.",
+      "status": 200,
+      "response": {
+        "utterance_id": "CF27AEF6-8D66-49FF-9AA2-CBDCB60C44D4",
+        "interaction_request_id": "B1807FC9-438A-4683-8C7E-779639123A14",
+        "accepted": true
+      },
+      "accepted": true,
+      "elapsed_seconds": 1.3733262079767883,
+      "scheduled_seconds": 300.0,
+      "completed_seconds": 301.37391041603405
+    },
+    {
+      "role": "status",
+      "utterance_id": "1d2f0f6f-c843-4e65-801d-0ab2648f11bd",
+      "transcript": "Is the signed duplex coding task complete?",
+      "status": 200,
+      "response": {
+        "accepted": true,
+        "utterance_id": "1D2F0F6F-C843-4E65-801D-0AB2648F11BD",
+        "interaction_request_id": "A4D29968-9557-4787-AEC0-7A5316B10A98"
+      },
+      "accepted": true,
+      "elapsed_seconds": 1.1629670000402257,
+      "scheduled_seconds": 540.0,
+      "completed_seconds": 541.1641046660952
+    }
+  ],
+  "output_packet_count": 7374,
+  "output_audio_duration_seconds": 589.92,
+  "output_coverage": 0.9832,
+  "first_output_packet_seconds": 0.16979150008410215,
+  "last_output_packet_seconds": 600.019495540997,
+  "terminal_output_gap_seconds": 0.0,
+  "packet_gap_median_seconds": 0.08130512502975762,
+  "packet_gap_p95_seconds": 0.08691583399195224,
+  "packet_gap_p99_seconds": 0.08991541690193117,
+  "packet_gap_max_seconds": 0.2135163339553401,
+  "largest_packet_gaps": [
+    {
+      "start_seconds": 234.2775099161081,
+      "end_seconds": 234.49102625006344,
+      "duration_seconds": 0.2135163339553401
+    },
+    {
+      "start_seconds": 232.98102075001225,
+      "end_seconds": 233.171889499994,
+      "duration_seconds": 0.19086874998174608
+    },
+    {
+      "start_seconds": 222.09579754108563,
+      "end_seconds": 222.2480125830043,
+      "duration_seconds": 0.15221504191868007
+    },
+    {
+      "start_seconds": 232.029537250055,
+      "end_seconds": 232.17542058310937,
+      "duration_seconds": 0.14588333305437118
+    },
+    {
+      "start_seconds": 231.5638562910026,
+      "end_seconds": 231.707155500073,
+      "duration_seconds": 0.14329920907039195
+    },
+    {
+      "start_seconds": 232.38485904107802,
+      "end_seconds": 232.5215131250443,
+      "duration_seconds": 0.13665408396627754
+    },
+    {
+      "start_seconds": 232.5215131250443,
+      "end_seconds": 232.6505507080583,
+      "duration_seconds": 0.12903758301399648
+    },
+    {
+      "start_seconds": 231.707155500073,
+      "end_seconds": 231.8303811660735,
+      "duration_seconds": 0.12322566600050777
+    },
+    {
+      "start_seconds": 234.49102625006344,
+      "end_seconds": 234.61279362509958,
+      "duration_seconds": 0.12176737503614277
+    },
+    {
+      "start_seconds": 223.24635066604242,
+      "end_seconds": 223.36805554106832,
+      "duration_seconds": 0.12170487502589822
+    }
+  ],
+  "half_second_stalls": [],
+  "audio_output": "tmp/Acceptance-audio/signed-pi-duplex-q8.wav",
+  "audio_sha256": "57af70f72277fc5dd6d7b2351eb65ce9ccaa33edff84b5452334a7c1eaa6d1c1",
+  "reconnect_passed": true,
+  "checks": {
+    "ten_minute_duration": true,
+    "continuous_output_coverage": true,
+    "no_half_second_output_stall": true,
+    "p99_packet_gap_under_150ms": true,
+    "local_asr_marker_coverage": true,
+    "active_output_interruptions": true,
+    "coding_request_accepted": true,
+    "grounded_status_requests_accepted": true,
+    "coordinator_remained_ready": true,
+    "runtime_remained_connected": true
+  },
+  "gate_passed": true
+}

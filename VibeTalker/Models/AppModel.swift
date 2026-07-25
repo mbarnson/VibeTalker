@@ -157,6 +157,11 @@ final class AppModel {
             await publish(.system, "VibeTalker native host initialized")
             refreshCodingCredentialStatus()
             refreshInteractionCredentialStatus()
+            if ProcessInfo.processInfo.environment[
+                "VIBETALKER_ACCEPTANCE_AUTOSTART"
+            ] == "1" {
+                await runAcceptanceAutostart()
+            }
         }
     }
 
@@ -639,6 +644,33 @@ final class AppModel {
                 await publish(.error, "Gate 0 preflight failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func runAcceptanceAutostart() async {
+        await publish(.diagnostic, "Signed acceptance autostart requested")
+        runNativePreflight()
+
+        let preflightDeadline = ContinuousClock.now + .seconds(30)
+        while health == .checking, ContinuousClock.now < preflightDeadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard health == .ready else {
+            await publish(.error, "Signed acceptance autostart stopped at preflight")
+            return
+        }
+
+        startPiRuntime()
+        let piDeadline = ContinuousClock.now + .seconds(30)
+        while !piRPCReady, ContinuousClock.now < piDeadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard piRPCReady else {
+            await publish(.error, "Signed acceptance autostart timed out waiting for pi RPC")
+            return
+        }
+
+        startVoiceRuntime()
+        await publish(.diagnostic, "Signed acceptance runtime launch requested")
     }
 
     func submitComposer() {

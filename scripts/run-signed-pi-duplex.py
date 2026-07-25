@@ -101,7 +101,7 @@ async def valid_handshake(
 ) -> aiohttp.ClientWebSocketResponse:
     websocket = await session.ws_connect(
         f"{base_url}/api/chat",
-        timeout=aiohttp.ClientTimeout(total=None, sock_connect=5),
+        timeout=aiohttp.ClientWSTimeout(ws_close=5),
         max_msg_size=8 * 1_024 * 1_024,
     )
     handshake = await websocket.receive(timeout=5)
@@ -317,6 +317,23 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         later - earlier
         for earlier, later in zip(audio_times, audio_times[1:])
     ]
+    terminal_output_gap = (
+        max(0.0, args.duration_seconds - audio_times[-1])
+        if audio_times
+        else args.duration_seconds
+    )
+    gap_events = sorted(
+        (
+            {
+                "start_seconds": earlier,
+                "end_seconds": later,
+                "duration_seconds": later - earlier,
+            }
+            for earlier, later in zip(audio_times, audio_times[1:])
+        ),
+        key=lambda event: event["duration_seconds"],
+        reverse=True,
+    )
     asr = "".join(captured.get("asr", [])).strip()
     normalized_asr = asr.lower()
     recognized_markers = [
@@ -346,7 +363,11 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             and elapsed >= 599
         ),
         "continuous_output_coverage": coverage >= 0.95,
-        "no_half_second_output_stall": bool(gaps) and max(gaps) < 0.5,
+        "no_half_second_output_stall": (
+            bool(gaps)
+            and max(gaps) < 0.5
+            and terminal_output_gap < 0.5
+        ),
         "p99_packet_gap_under_150ms": (
             percentile(gaps, 0.99) is not None
             and percentile(gaps, 0.99) < 0.15
@@ -386,12 +407,24 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         "output_packet_count": len(audio_times),
         "output_audio_duration_seconds": audio_duration,
         "output_coverage": coverage,
+        "first_output_packet_seconds": (
+            audio_times[0] if audio_times else None
+        ),
+        "last_output_packet_seconds": (
+            audio_times[-1] if audio_times else None
+        ),
+        "terminal_output_gap_seconds": terminal_output_gap,
         "packet_gap_median_seconds": (
             statistics.median(gaps) if gaps else None
         ),
         "packet_gap_p95_seconds": percentile(gaps, 0.95),
         "packet_gap_p99_seconds": percentile(gaps, 0.99),
         "packet_gap_max_seconds": max(gaps) if gaps else None,
+        "largest_packet_gaps": gap_events[:10],
+        "half_second_stalls": [
+            event for event in gap_events
+            if event["duration_seconds"] >= 0.5
+        ],
         "audio_output": str(args.audio_output),
         "audio_sha256": audio_sha256,
         "reconnect_passed": reconnect_passed,

@@ -64,6 +64,14 @@ variables, and launches the built app without putting credentials in argv.
 Its release-safe default is hosted OpenAI Responses for Interaction and hosted
 Anthropic for coding.
 
+Pass provider names explicitly to use a different supported pairing. For
+example, the signed pi/full-duplex acceptance gate uses the current OpenAI key
+for both roles:
+
+```sh
+scripts/run-vibetalker-dev.sh openai openai
+```
+
 For normal app launches, use each provider's SecureField and **Save** button.
 VibeTalker creates a device-only Data Protection Keychain item. The secret is
 not stored in app preferences, `auth.json`, the event ledger, the app bundle,
@@ -103,6 +111,12 @@ Speak a normal question, then ask for a harmless coding change. A committed job
 acknowledgement names the `Workspace` sandbox. Conversation remains available
 while pi works; ask what pi is doing for a grounded status response. Completion
 appears in the Pi Console and is injected back into Moshi for proactive speech.
+
+For unattended acceptance only, set
+`VIBETALKER_ACCEPTANCE_AUTOSTART=1`. The development-only launch seam runs
+preflight, waits for pi RPC, and starts the local voice runtime without opening
+the Moshi browser surface or automating the app UI. It is not persisted and
+normal launches remain manual.
 
 ## Provider modes and egress
 

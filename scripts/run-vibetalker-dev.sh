@@ -5,6 +5,11 @@ repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 interaction_provider="${1:-openai}"
 coding_provider="${2:-anthropic}"
 env_file="${VIBETALKER_ENV_FILE:-$repo_root/.env}"
+if (( $# >= 2 )); then
+    shift 2
+else
+    shift "$#"
+fi
 
 environment_key_for_provider() {
     case "$1" in
@@ -74,4 +79,4 @@ unset ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OMLX_API_KEY
 export "${interaction_environment_key}=${interaction_credential}"
 export "${coding_environment_key}=${coding_credential}"
 unset interaction_credential coding_credential
-exec "$app_binary"
+exec "$app_binary" "$@"
