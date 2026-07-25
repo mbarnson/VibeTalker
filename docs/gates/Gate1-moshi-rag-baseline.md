@@ -141,6 +141,55 @@ The reproducibility manifest pins this experiment to:
 
 The MLX implementation is not assumed to be a drop-in replacement. The
 Moshi-RAG fork's ARC Reference conditioning and embedded streaming STT remain in
-its Rust/Candle topology. The next test is a q4 MLX base-Moshi latency baseline
-on the same acceptance Mac. If that is real-time, it establishes the optimized
-execution target and bounds the work needed to preserve Reference conditioning.
+its Rust/Candle topology.
+
+### q4 MLX result
+
+The pinned source package was installed into an isolated Python 3.12
+environment and run with:
+
+```sh
+python -m moshi_mlx.local_web \
+  -q 4 \
+  --hf-repo kyutai/moshiko-mlx-q4 \
+  --host 127.0.0.1 \
+  --port 8999 \
+  --no-browser
+```
+
+The q4 model revision was
+`18e4df760a34d5977a34517d7d1580e07acbb2f1`. MLX 0.26.5 and
+`mlx-metal` 0.26.5 were selected by the pinned package constraints.
+
+The official web client reported the following after a continuous live
+microphone session:
+
+| Audio played | Missed audio | Latency | Min/max buffer |
+| ---: | ---: | ---: | ---: |
+| 15.53 s | 0.06 s | 0.135 s | 0.002 / 0.135 s |
+| 53.14 s | 0.06 s | 0.135 s | 0.002 / 0.135 s |
+| 57.37 s | 0.06 s | 0.136 s | 0.002 / 0.135 s |
+
+Latency remained flat rather than accumulating. This is materially different
+from the patched Candle BF16 result, which accumulated roughly 11 seconds of
+latency after 29 seconds.
+
+The result isolates the failure: Apple Silicon, Safari audio, Mimi, and Moshi
+q4 can sustain real-time operation on the acceptance Mac. The current
+Rust/Candle Moshi-RAG execution path cannot. Continuing to tune process QoS or
+CPU scheduling would not address the measured bottleneck.
+
+Gate 1 remains failed as originally written because the unmodified
+Rust/Candle backend did not complete its required live path. Dependent product
+work requires a deliberate architecture revision that preserves Moshi-RAG's
+Reference conditioning while using the demonstrated MLX execution path. The
+next implementation investigation is the narrowest of:
+
+1. convert the Moshi-RAG checkpoint to MLX and add its
+   `reference_with_time` streaming-sum conditioner to the MLX runtime; or
+2. keep the ARC encoder as a supervised sidecar and feed its encoded
+   conditioning tensor into an MLX Moshi-RAG model.
+
+The Moshi-RAG repository already contains MLX weight-conversion scripts and a
+Python ARC conditioner service, so this investigation starts from upstream
+source rather than a new generic speech pipeline.

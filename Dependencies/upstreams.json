@@ -21,7 +21,10 @@
     "package": "moshi_mlx",
     "integration": "source-build-experiment",
     "models": {
-      "q4": "kyutai/moshiko-mlx-q4",
+      "q4": {
+        "repository": "kyutai/moshiko-mlx-q4",
+        "revision": "18e4df760a34d5977a34517d7d1580e07acbb2f1"
+      },
       "q8": "kyutai/moshiko-mlx-q8",
       "bf16": "kyutai/moshiko-mlx-bf16"
     }
