@@ -13,6 +13,7 @@ huggingface-hub==0.28.1
 idna==3.18
 mlx-metal==0.26.5
 mlx==0.26.5
+msgpack==1.1.1
 multidict==6.7.1
 numpy==2.2.6
 packaging==26.2

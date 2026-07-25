@@ -1,0 +1,45 @@
+static_dir = "."
+log_dir = "Logs"
+instance_name = "vibetalker-stt"
+authorized_ids = ["loopback-only"]
+
+[modules.stt]
+type = "Asr"
+path = "/api/asr_streaming"
+lm_model_file = "Models/stt-1b-en-fr.safetensors"
+text_tokenizer_file = "Models/tokenizer_en_fr_audio_8000.model"
+audio_tokenizer_file = "Models/stt-mimi-e351c8d8-125.safetensors"
+asr_delay_in_tokens = 0
+temperature = 0.0
+
+[modules.stt.model]
+text_in_vocab_size = 8001
+text_out_vocab_size = 8000
+audio_vocab_size = 2049
+audio_codebooks = 32
+
+[modules.stt.model.extra_heads]
+num_heads = 3
+dim = 6
+
+[modules.stt.model.transformer]
+d_model = 2048
+num_heads = 16
+num_layers = 16
+dim_feedforward = 8192
+causal = true
+norm_first = true
+bias_ff = false
+bias_attn = false
+positional_embedding = "Rope"
+use_conv_block = false
+conv_kernel_size = 3
+use_conv_bias = true
+gating = "silu"
+norm = "RmsNorm"
+context = 750
+max_period = 100000
+max_seq_len = 4096
+kv_repeat = 1
+conv_layout = false
+shared_cross_attn = false

@@ -11,6 +11,7 @@ entitlements="$SRCROOT/VibeTalker/Resources/node-helper.entitlements"
 required=(
     "$source_root/.vibetalker-voice-runtime"
     "$source_root/Python/bin/python3.12"
+    "$source_root/Bin/vibetalker-stt"
     "$source_root/moshi-mlx/site-packages/moshi_mlx/__init__.py"
     "$source_root/moshi-rag/site-packages/moshi/__init__.py"
 )
@@ -23,10 +24,12 @@ done
 
 rm -rf "$runtime_root" "$legacy_helper_root" "$python_helper" "$python_library_link"
 mkdir -p \
+    "$runtime_root/Bin" \
     "$runtime_root/moshi-mlx" \
     "$runtime_root/moshi-rag" \
     "$(dirname "$python_helper")"
 /usr/bin/rsync -a --exclude "/bin/" "$source_root/Python/" "$runtime_root/Python/"
+/bin/cp "$source_root/Bin/vibetalker-stt" "$runtime_root/Bin/vibetalker-stt"
 /usr/bin/rsync -a \
     "$source_root/moshi-mlx/site-packages/" \
     "$runtime_root/moshi-mlx/site-packages/"

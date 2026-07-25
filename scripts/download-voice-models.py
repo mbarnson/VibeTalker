@@ -18,6 +18,8 @@ ARC_REPOSITORY = "kyutai/ARC4_Encoder_Llama"
 ARC_REVISION = "f27d986b193bfdff742d54412d3057b498ec8cc9"
 TOKENIZER_REPOSITORY = "meta-llama/Llama-3.2-3B-Instruct"
 TOKENIZER_REVISION = "0cb88a4f764b7a12671c53f0838cd831a0843b95"
+STT_REPOSITORY = "kyutai/stt-1b-en_fr-candle"
+STT_REVISION = "095e38f6242006a93c2541149b181988397f5c7c"
 
 
 def materialize(source: Path, destination: Path) -> None:
@@ -82,6 +84,22 @@ def main() -> None:
         source = download_file(
             MOSHIKA_REPOSITORY,
             MOSHIKA_REVISION,
+            source_name,
+            cache_directory,
+        )
+        materialize(source, model_directory / destination_name)
+
+    stt_artifacts = {
+        "stt-1b-en-fr.safetensors": "model.safetensors",
+        "tokenizer_en_fr_audio_8000.model":
+            "tokenizer_en_fr_audio_8000.model",
+        "stt-mimi-e351c8d8-125.safetensors":
+            "mimi-pytorch-e351c8d8@125.safetensors",
+    }
+    for destination_name, source_name in stt_artifacts.items():
+        source = download_file(
+            STT_REPOSITORY,
+            STT_REVISION,
             source_name,
             cache_directory,
         )

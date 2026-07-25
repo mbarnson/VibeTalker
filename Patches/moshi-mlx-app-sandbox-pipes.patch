@@ -1,6 +1,14 @@
 --- a/moshi_mlx/moshi_mlx/local_web.py
 +++ b/moshi_mlx/moshi_mlx/local_web.py
-@@ -17,6 +17,9 @@
+@@ -8,6 +8,7 @@
+ import queue
+ import os
+ import tarfile
++import tempfile
+ import time
+ import sys
+ import numpy as np
+@@ -17,6 +18,9 @@
  from enum import Enum
  import typing as tp
  import sphn
@@ -10,7 +18,7 @@
  import aiohttp
  from aiohttp import web
  import webbrowser
-@@ -87,11 +89,11 @@
+@@ -87,11 +91,11 @@
              data = audio_tokenizer.get_encoded()
              if data is not None:
                  break
@@ -24,7 +32,16 @@
              if kind == 0:
                  audio_tokenizer.decode(data)
                  break
-@@ -191,25 +193,22 @@
+@@ -116,7 +120,7 @@
+ def model_server(
+     client_to_server,
+     server_to_client,
+-    reference_to_model,
++    reference_mailbox,
+     lm_config,
+     args,
+ ):
+@@ -191,25 +195,28 @@
      reference_frames = None
      reference_frame_index = 0
  
@@ -48,11 +65,16 @@
 -                        f"{reference_frames.shape[0]} ARC reference frames",
 -                    )
 -            except queue.Empty:
--                pass
-+            while reference_to_model.poll():
++            consumed_reference = f"{reference_mailbox}.consume"
++            try:
++                os.replace(reference_mailbox, consumed_reference)
++            except FileNotFoundError:
+                 pass
++            else:
 +                reference_frames = mx.array(
-+                    reference_to_model.recv()
++                    np.load(consumed_reference)
 +                ).astype(mx.bfloat16)
++                os.unlink(consumed_reference)
 +                reference_frame_index = 0
 +                log(
 +                    "info",
@@ -62,7 +84,7 @@
  
              step_condition = ct
              if (
-@@ -228,10 +227,10 @@
+@@ -228,10 +235,10 @@
              if text_token not in (0, 3):
                  _text = text_tokenizer.id_to_piece(text_token)  # type: ignore
                  _text = _text.replace("▁", " ")
@@ -75,7 +97,16 @@
      except KeyboardInterrupt:
          pass
  
-@@ -262,7 +261,7 @@
+@@ -239,7 +246,7 @@
+ def web_server(
+     client_to_server,
+     server_to_client,
+-    reference_to_model,
++    reference_mailbox,
+     lm_config,
+     args,
+ ):
+@@ -262,7 +269,7 @@
          nc = lm_config.depformer.num_slices
          max_delay = max(lm_config.audio_delays)
      audio_tokenizer = rustymimi.StreamTokenizer(mimi_file, num_codebooks=nc)  # type: ignore
@@ -84,7 +115,7 @@
      log("info", f"[CLIENT] received '{start}' from server, starting...")
  
      full_warmup(audio_tokenizer, client_to_server, server_to_client, max_delay)
-@@ -290,19 +289,18 @@
+@@ -290,19 +297,18 @@
              if data is None:
                  await asyncio.sleep(0.001)
                  continue
@@ -108,21 +139,31 @@
  
      lock = asyncio.Lock()
  
-@@ -415,12 +413,7 @@
+@@ -415,12 +421,18 @@
          ):
              raise web.HTTPBadGateway(reason="ARC returned an invalid tensor")
  
--        try:
++        pending_reference = (
++            f"{reference_mailbox}.{uuid.uuid4().hex}.pending"
++        )
+         try:
 -            while True:
 -                reference_to_model.get_nowait()
 -        except queue.Empty:
 -            pass
 -        reference_to_model.put_nowait(tensor[0])
-+        reference_to_model.send(tensor[0])
++            with open(pending_reference, "wb") as reference_file:
++                np.save(reference_file, tensor[0])
++            os.replace(pending_reference, reference_mailbox)
++        finally:
++            try:
++                os.unlink(pending_reference)
++            except FileNotFoundError:
++                pass
          log("info", f"accepted {tensor.shape[1]} ARC reference frames")
          return web.json_response({"accepted": True, "frames": tensor.shape[1]})
  
-@@ -520,9 +513,9 @@
+@@ -520,9 +532,12 @@
              print(f"Invalid value for quantized {args.quantized}")
              sys.exit(1)
  
@@ -131,11 +172,14 @@
 -    reference_to_model = multiprocessing.Queue()
 +    client_receiver, client_sender = multiprocessing.Pipe(duplex=False)
 +    server_receiver, server_sender = multiprocessing.Pipe(duplex=False)
-+    reference_receiver, reference_sender = multiprocessing.Pipe(duplex=False)
++    reference_mailbox = str(
++        Path(tempfile.gettempdir())
++        / f"moshi-reference-{os.getpid()}-{uuid.uuid4().hex}.npy"
++    )
  
      # Get the model config
      lm_config = args.lm_config
-@@ -538,15 +531,22 @@
+@@ -538,15 +553,22 @@
              lm_config = json.load(fobj)
  
      # Create two processes
@@ -146,7 +190,7 @@
 +    web_server_args = (
 +        client_sender,
 +        server_receiver,
-+        reference_sender,
++        reference_mailbox,
          lm_config,
          args,
      )
@@ -155,7 +199,7 @@
 +    model_server_args = (
 +        client_receiver,
 +        server_sender,
-+        reference_receiver,
++        reference_mailbox,
 +        lm_config,
 +        args,
 +    )

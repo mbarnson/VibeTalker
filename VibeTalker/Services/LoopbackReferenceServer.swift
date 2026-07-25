@@ -88,7 +88,11 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
         }
         listener.start(queue: queue)
         try await start.wait()
-        return URL(string: "http://127.0.0.1:\(rawPort)/v1")!
+        guard let boundPort = listener.port?.rawValue else {
+            listener.cancel()
+            throw LoopbackReferenceServerError.invalidPort
+        }
+        return URL(string: "http://127.0.0.1:\(boundPort)/v1")!
     }
 
     func stop() {

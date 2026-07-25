@@ -100,7 +100,8 @@ struct VibeTalkerTests {
 
         let installation = RuntimeInstallation(rootURL: root)
         let executableURLs = [
-            installation.pythonURL
+            installation.pythonURL,
+            installation.sttExecutableURL
         ]
         let fileURLs = [
             installation.mlxSitePackagesURL
@@ -111,8 +112,12 @@ struct VibeTalkerTests {
             installation.conditionerWeightURL,
             installation.tokenizerURL,
             installation.mimiWeightURL,
+            installation.sttWeightURL,
+            installation.sttTokenizerURL,
+            installation.sttMimiWeightURL,
             installation.mlxConfigurationURL,
-            installation.ragConfigurationURL
+            installation.ragConfigurationURL,
+            installation.sttConfigurationURL
         ]
         for url in executableURLs + fileURLs {
             try fileManager.createDirectory(
@@ -138,6 +143,9 @@ struct VibeTalkerTests {
         let conditioner = try #require(
             specs.first(where: { $0.service == .referenceEncoder })
         )
+        let stt = try #require(
+            specs.first(where: { $0.service == .speechToText })
+        )
 
         #expect(moshi.environment["LLM_BASE_URL"] == adapterURL.absoluteString)
         #expect(moshi.environment["LLM_MODEL_NAME"] == "vibetalker-coordinator")
@@ -151,6 +159,21 @@ struct VibeTalkerTests {
         #expect(conditioner.arguments.prefix(2) == ["-m", "moshi.server_conditioner"])
         #expect(conditioner.arguments.contains("--config"))
         #expect(!conditioner.arguments.contains("--lm-config"))
+        #expect(stt.arguments.contains("--cpu"))
+        #expect(stt.arguments.contains("--silent"))
+        #expect(stt.environment["RAYON_NUM_THREADS"] == "4")
+        let sttURLIndex = try #require(moshi.arguments.firstIndex(of: "--stt-url"))
+        #expect(
+            moshi.arguments[sttURLIndex + 1]
+                == "ws://127.0.0.1:8997/api/asr_streaming?auth_id=loopback-only"
+        )
+        let transcriptURLIndex = try #require(
+            moshi.arguments.firstIndex(of: "--transcript-url")
+        )
+        #expect(
+            moshi.arguments[transcriptURLIndex + 1]
+                == adapterURL.appending(path: "transcripts").absoluteString
+        )
         let staticIndex = try #require(moshi.arguments.firstIndex(of: "--static"))
         #expect(moshi.arguments[staticIndex + 1] == "none")
     }
@@ -173,8 +196,13 @@ struct VibeTalkerTests {
             sourceInstallation.conditionerWeightURL,
             sourceInstallation.tokenizerURL,
             sourceInstallation.mimiWeightURL,
+            sourceInstallation.sttWeightURL,
+            sourceInstallation.sttTokenizerURL,
+            sourceInstallation.sttMimiWeightURL,
             sourceInstallation.mlxConfigurationURL,
-            sourceInstallation.ragConfigurationURL
+            sourceInstallation.ragConfigurationURL,
+            sourceInstallation.sttConfigurationURL,
+            sourceInstallation.sttExecutableURL
         ]
         for url in [sourceInstallation.pythonURL] + requiredFiles {
             try fileManager.createDirectory(
@@ -186,6 +214,10 @@ struct VibeTalkerTests {
         try fileManager.setAttributes(
             [.posixPermissions: 0o700],
             ofItemAtPath: sourceInstallation.pythonURL.path
+        )
+        try fileManager.setAttributes(
+            [.posixPermissions: 0o700],
+            ofItemAtPath: sourceInstallation.sttExecutableURL.path
         )
         try """
         moshi=\(VoiceRuntimeImporter.moshiRevision)
@@ -639,7 +671,7 @@ struct VibeTalkerTests {
             adapter: adapter,
             bridge: bridge
         )
-        let baseURL = try await server.start()
+        let baseURL = try await server.start(port: 0)
         defer { server.stop() }
 
         var request = URLRequest(
@@ -689,7 +721,7 @@ struct VibeTalkerTests {
             adapter: MoshiChatCompletionsAdapter(bridge: bridge),
             bridge: bridge
         )
-        let baseURL = try await server.start()
+        let baseURL = try await server.start(port: 0)
         defer { server.stop() }
 
         var request = URLRequest(url: baseURL.appending(path: "transcripts"))

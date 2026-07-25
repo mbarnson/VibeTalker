@@ -379,6 +379,9 @@ final class AppModel {
                 }
                 await publish(.completion, "Local MLX Moshi-RAG topology started")
             } catch {
+                await processCoordinator.stop(.moshi)
+                await processCoordinator.stop(.speechToText)
+                await processCoordinator.stop(.referenceEncoder)
                 await endVoiceSession()
                 runtimeStates = await processCoordinator.snapshot()
                 await publish(.error, "Voice runtime start failed: \(error.localizedDescription)")
@@ -389,6 +392,7 @@ final class AppModel {
     func stopVoiceRuntime() {
         Task {
             await processCoordinator.stop(.moshi)
+            await processCoordinator.stop(.speechToText)
             await processCoordinator.stop(.referenceEncoder)
             await endVoiceSession()
             runtimeStates = await processCoordinator.snapshot()

@@ -49,6 +49,10 @@ nonisolated struct RuntimeInstallation: Sendable {
         bundledVoiceRuntimeRootURL.appending(path: "moshi-rag/site-packages")
     }
 
+    var sttExecutableURL: URL {
+        bundledVoiceRuntimeRootURL.appending(path: "Bin/vibetalker-stt")
+    }
+
     var mlxWorkingDirectoryURL: URL {
         bundledVoiceRuntimeRootURL.appending(
             path: "moshi-mlx",
@@ -83,12 +87,28 @@ nonisolated struct RuntimeInstallation: Sendable {
         modelDirectoryURL.appending(path: "tokenizer-e351c8d8-checkpoint125.safetensors")
     }
 
+    var sttWeightURL: URL {
+        modelDirectoryURL.appending(path: "stt-1b-en-fr.safetensors")
+    }
+
+    var sttTokenizerURL: URL {
+        modelDirectoryURL.appending(path: "tokenizer_en_fr_audio_8000.model")
+    }
+
+    var sttMimiWeightURL: URL {
+        modelDirectoryURL.appending(path: "stt-mimi-e351c8d8-125.safetensors")
+    }
+
     var mlxConfigurationURL: URL {
         rootURL.appending(path: "moshi-rag-mlx-config.json")
     }
 
     var ragConfigurationURL: URL {
         rootURL.appending(path: "moshi-rag-config.json")
+    }
+
+    var sttConfigurationURL: URL {
+        rootURL.appending(path: "moshi-stt.toml")
     }
 
     var piWorkingDirectoryURL: URL {
@@ -112,6 +132,11 @@ nonisolated struct RuntimeInstallation: Sendable {
     func diagnostics(fileManager: FileManager = .default) -> [RuntimeArtifactDiagnostic] {
         [
             executable("Packaged Python 3.12", pythonURL, fileManager: fileManager),
+            executable(
+                "Source-built Kyutai STT worker",
+                sttExecutableURL,
+                fileManager: fileManager
+            ),
             file(
                 "MLX Moshi source package",
                 mlxSitePackagesURL.appending(path: "moshi_mlx/__init__.py"),
@@ -126,8 +151,12 @@ nonisolated struct RuntimeInstallation: Sendable {
             file("ARC conditioner weights", conditionerWeightURL, fileManager: fileManager),
             file("Moshi tokenizer", tokenizerURL, fileManager: fileManager),
             file("Mimi weights", mimiWeightURL, fileManager: fileManager),
+            file("Kyutai STT weights", sttWeightURL, fileManager: fileManager),
+            file("Kyutai STT tokenizer", sttTokenizerURL, fileManager: fileManager),
+            file("Kyutai STT Mimi weights", sttMimiWeightURL, fileManager: fileManager),
             file("MLX model configuration", mlxConfigurationURL, fileManager: fileManager),
-            file("ARC model configuration", ragConfigurationURL, fileManager: fileManager)
+            file("ARC model configuration", ragConfigurationURL, fileManager: fileManager),
+            file("Kyutai STT configuration", sttConfigurationURL, fileManager: fileManager)
         ]
     }
 
@@ -162,6 +191,14 @@ nonisolated struct RuntimeInstallation: Sendable {
         conditionerEnvironment["PYTHONPATH"] = ragSitePackagesURL.path
         var moshiEnvironment = commonEnvironment
         moshiEnvironment["PYTHONPATH"] = mlxSitePackagesURL.path
+        var sttEnvironment = commonEnvironment
+        sttEnvironment["RAYON_NUM_THREADS"] = "4"
+        sttEnvironment["VECLIB_MAXIMUM_THREADS"] = "4"
+        let sttURL =
+            "ws://127.0.0.1:8997/api/asr_streaming?auth_id=loopback-only"
+        let transcriptURL = referenceBaseURL?
+            .appending(path: "transcripts")
+            .absoluteString ?? "http://127.0.0.1:8173/v1/transcripts"
 
         return [
             RuntimeProcessSpec(
@@ -180,6 +217,20 @@ nonisolated struct RuntimeInstallation: Sendable {
                 environment: conditionerEnvironment
             ),
             RuntimeProcessSpec(
+                service: .speechToText,
+                executableURL: sttExecutableURL,
+                arguments: [
+                    "worker",
+                    "--addr", "127.0.0.1",
+                    "--port", "8997",
+                    "--cpu",
+                    "--silent",
+                    "--config", sttConfigurationURL.path
+                ],
+                workingDirectoryURL: rootURL,
+                environment: sttEnvironment
+            ),
+            RuntimeProcessSpec(
                 service: .moshi,
                 executableURL: mlxPythonURL,
                 arguments: [
@@ -192,7 +243,9 @@ nonisolated struct RuntimeInstallation: Sendable {
                     "--host", "127.0.0.1",
                     "--port", "8999",
                     "--static", "none",
-                    "--no-browser"
+                    "--no-browser",
+                    "--stt-url", sttURL,
+                    "--transcript-url", transcriptURL
                 ],
                 workingDirectoryURL: mlxWorkingDirectoryURL,
                 environment: moshiEnvironment
@@ -377,6 +430,7 @@ nonisolated struct VoiceRuntimeImporter: Sendable {
         "Models",
         "moshi-rag-mlx-config.json",
         "moshi-rag-config.json",
+        "moshi-stt.toml",
         ".vibetalker-voice-runtime"
     ]
 

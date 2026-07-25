@@ -1,0 +1,188 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -10,6 +10,7 @@ import ssl
+ import tarfile
+ import time
+ import sys
++import uuid
+ import numpy as np
+ import multiprocessing
+ from pathlib import Path
+@@ -22,6 +23,7 @@ from tempfile import TemporaryDirectory
+ mimetypes.knownfiles = []
+ import aiohttp
+ from aiohttp import web
++import msgpack
+ import webbrowser
+ 
+ import mlx.core as mx
+@@ -304,12 +306,53 @@ async def web_server(args, instance, static: str | None = None):
+                 await asyncio.sleep(0.001)
+ 
+     lock = asyncio.Lock()
++    transcript_tasks: set[asyncio.Task] = set()
+ 
++    async def post_transcript(utterance_id: str, transcript: str):
++        payload = {
++            "utterance_id": utterance_id,
++            "revision": 1,
++            "transcript": transcript,
++            "committed": True,
++        }
++        timeout = aiohttp.ClientTimeout(total=args.transcript_timeout)
++        for attempt in range(3):
++            try:
++                async with aiohttp.ClientSession(timeout=timeout) as session:
++                    async with session.post(args.transcript_url, json=payload) as response:
++                        response.raise_for_status()
++                log("info", f"committed ASR utterance {utterance_id}: {transcript!r}")
++                return
++            except (aiohttp.ClientError, TimeoutError) as exc:
++                if attempt == 2:
++                    log("error", f"transcript commit failed: {exc}")
++                    return
++                await asyncio.sleep(0.1 * (attempt + 1))
++
++    def schedule_transcript_commit(utterance_id: str, transcript: str):
++        task = asyncio.create_task(post_transcript(utterance_id, transcript))
++        transcript_tasks.add(task)
++        task.add_done_callback(transcript_tasks.discard)
++
+     async def handle_chat(request):
+         ws = web.WebSocketResponse()
+         await ws.prepare(request)
++        word_parts: list[str] = []
++        utterance_id = str(uuid.uuid4())
++        speech_seen = False
++        silence_steps = 0
+ 
+-        async def recv_loop():
++        def commit_current_transcript():
++            nonlocal utterance_id, speech_seen, silence_steps
++            transcript = "".join(word_parts).strip()
++            if transcript:
++                schedule_transcript_commit(utterance_id, transcript)
++            word_parts.clear()
++            utterance_id = str(uuid.uuid4())
++            speech_seen = False
++            silence_steps = 0
++
++        async def recv_loop(stt_ws):
+             nonlocal close
+             all_pcm_data = None
+             try:
+@@ -343,12 +386,59 @@ async def web_server(args, instance, static: str | None = None):
+                             chunk = all_pcm_data[:FRAME_SIZE]
+                             all_pcm_data = all_pcm_data[FRAME_SIZE:]
+                             input_queue.put_nowait(chunk)
++                            await stt_ws.send_bytes(msgpack.packb(
++                                {"type": "Audio", "pcm": chunk.tolist()},
++                                use_bin_type=True,
++                                use_single_float=True,
++                            ))
+ 
+                     else:
+                         log("warning", f"unknown message kind {kind}")
+             finally:
+                 close = True
++                commit_current_transcript()
+                 log("info", "connection closed")
++
++        async def stt_recv_loop(stt_ws):
++            nonlocal speech_seen, silence_steps
++            async for message in stt_ws:
++                if message.type == aiohttp.WSMsgType.ERROR:
++                    raise stt_ws.exception() or RuntimeError("STT websocket failed")
++                if message.type != aiohttp.WSMsgType.BINARY:
++                    continue
++                event = msgpack.unpackb(message.data, raw=False)
++                event_type = event.get("type")
++                if event_type == "Word":
++                    text = event.get("text", "")
++                    if isinstance(text, str) and text:
++                        word = text.rstrip() + " "
++                        word_parts.append(word)
++                        await ws.send_bytes(
++                            b"\x07\x0a" + word.encode("utf-8")
++                        )
++                    continue
++                if event_type != "Step":
++                    continue
++                probabilities = event.get("prs", [])
++                if len(probabilities) <= 2:
++                    continue
++                vad = float(probabilities[2])
++                if vad < args.stt_vad_threshold:
++                    speech_seen = True
++                    silence_steps = 0
++                    continue
++                if not speech_seen or not word_parts:
++                    continue
++                silence_steps += 1
++                transcript = "".join(word_parts).rstrip()
++                semantic_pause = transcript.endswith((".", "?", "!"))
++                required_steps = (
++                    args.stt_semantic_pause_steps
++                    if semantic_pause
++                    else args.stt_silence_steps
++                )
++                if silence_steps >= required_steps:
++                    commit_current_transcript()
+ 
+         async def send_loop():
+             while True:
+@@ -374,7 +464,26 @@ async def web_server(args, instance, static: str | None = None):
+             opus_reader = sphn.OpusStreamReader(SAMPLE_RATE)
+             # Send the handshake.
+             await ws.send_bytes(b"\x00")
+-            await asyncio.gather(recv_loop(), send_loop())
++            timeout = aiohttp.ClientTimeout(
++                total=None,
++                sock_connect=args.stt_connect_timeout,
++            )
++            async with aiohttp.ClientSession(timeout=timeout) as session:
++                async with session.ws_connect(args.stt_url) as stt_ws:
++                    tasks = {
++                        asyncio.create_task(recv_loop(stt_ws)),
++                        asyncio.create_task(stt_recv_loop(stt_ws)),
++                        asyncio.create_task(send_loop()),
++                    }
++                    done, pending = await asyncio.wait(
++                        tasks,
++                        return_when=asyncio.FIRST_COMPLETED,
++                    )
++                    for task in pending:
++                        task.cancel()
++                    await asyncio.gather(*pending, return_exceptions=True)
++                    for task in done:
++                        task.result()
+         log("info", "done with connection")
+         return ws
+ 
+@@ -493,6 +602,25 @@ def main():
+     )
+     parser.add_argument("--reference-timeout", type=float, default=5.0)
+     parser.add_argument(
++        "--stt-url",
++        default=os.environ.get(
++            "STT_URL",
++            "ws://127.0.0.1:8997/api/asr_streaming?auth_id=loopback-only",
++        ),
++    )
++    parser.add_argument("--stt-connect-timeout", type=float, default=5.0)
++    parser.add_argument("--stt-vad-threshold", type=float, default=0.5)
++    parser.add_argument("--stt-semantic-pause-steps", type=int, default=3)
++    parser.add_argument("--stt-silence-steps", type=int, default=8)
++    parser.add_argument(
++        "--transcript-url",
++        default=os.environ.get(
++            "TRANSCRIPT_URL",
++            "http://127.0.0.1:8173/v1/transcripts",
++        ),
++    )
++    parser.add_argument("--transcript-timeout", type=float, default=30.0)
++    parser.add_argument(
+         "--ssl",
+         type=str,
+         help=(

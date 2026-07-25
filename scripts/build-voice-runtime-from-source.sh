@@ -12,11 +12,13 @@ default_runtime_root="$repo_root/Vendor/voice-runtime"
 runtime_root="${1:-$default_runtime_root}"
 python_command="${PYTHON_COMMAND:-python3.12}"
 uv_command="${UV_COMMAND:-uv}"
+cargo_command="${CARGO_COMMAND:-cargo}"
 mlx_checkout="$runtime_root/moshi-mlx"
 rag_checkout="$runtime_root/moshi-rag"
 model_root="$runtime_root/Models"
 python_root="$runtime_root/Python"
 shared_python="$python_root/bin/python3.12"
+stt_binary="$runtime_root/Bin/vibetalker-stt"
 
 if [[ "$runtime_root" != /* ]] || [[ "$runtime_root" == "/" ]]; then
     echo "error: Runtime root must be an absolute, non-root path."
@@ -24,6 +26,10 @@ if [[ "$runtime_root" != /* ]] || [[ "$runtime_root" == "/" ]]; then
 fi
 if ! command -v "$python_command" >/dev/null; then
     echo "error: Python 3.12 is required (override with PYTHON_COMMAND)."
+    exit 1
+fi
+if ! command -v "$cargo_command" >/dev/null; then
+    echo "error: Rust cargo is required (override with CARGO_COMMAND)."
     exit 1
 fi
 python_version="$("$python_command" -c 'import platform; print(platform.python_version())')"
@@ -101,7 +107,8 @@ prepare_checkout \
     "$moshi_revision" \
     "$mlx_checkout" \
     "$repo_root/Patches/moshi-mlx-rag-apple-silicon.patch" \
-    "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch"
+    "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch" \
+    "$repo_root/Patches/moshi-mlx-streaming-stt.patch"
 prepare_checkout \
     "$rag_repository" \
     "$rag_revision" \
@@ -127,6 +134,34 @@ install_target_packages "$rag_checkout/dependencies" \
     -r "$repo_root/Dependencies/moshi-rag-conditioner-requirements.lock"
 /usr/bin/rsync -a "$rag_checkout/dependencies/" "$rag_checkout/site-packages/"
 rm -rf "$rag_checkout/dependencies"
+
+CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    PYO3_PYTHON="$shared_python" \
+    "$cargo_command" build \
+        --manifest-path "$rag_checkout/rust/Cargo.toml" \
+        --profile release-no-debug \
+        -p moshi-server \
+        --features candle/accelerate,candle-nn/accelerate
+mkdir -p "$(dirname "$stt_binary")"
+/bin/cp \
+    "$rag_checkout/rust/target/release-no-debug/moshi-server" \
+    "$stt_binary"
+python_library="$("$shared_python" -c \
+    'import sysconfig; print(sysconfig.get_config_var("LDLIBRARY"))')"
+linked_python="$(/usr/bin/otool -L "$stt_binary" | \
+    /usr/bin/awk 'index($1, "libpython3.12.dylib") { print $1; exit }')"
+if [[ -z "$linked_python" ]]; then
+    echo "error: Source-built STT worker is not linked to the pinned Python 3.12 runtime."
+    exit 1
+fi
+/usr/bin/install_name_tool \
+    -change "$linked_python" "@rpath/$python_library" \
+    "$stt_binary"
+/usr/bin/install_name_tool \
+    -add_rpath "@executable_path/../Python/lib" \
+    "$stt_binary"
+/bin/cp "$repo_root/Dependencies/moshi-stt.toml" \
+    "$runtime_root/moshi-stt.toml"
 
 HF_HOME="$runtime_root/HuggingFace" \
     PYTHONPATH="$rag_checkout/site-packages" \
@@ -156,6 +191,8 @@ HF_HOME="$runtime_root/HuggingFace" \
     "import torch; import moshi; assert torch.backends.mps.is_available()"
 PYTHONPATH="$mlx_checkout/site-packages" \
     "$shared_python" -c "import mlx.core; import moshi_mlx"
+DYLD_LIBRARY_PATH="$python_root/lib" \
+    "$stt_binary" validate "$runtime_root/moshi-stt.toml"
 
 marker="$runtime_root/.vibetalker-voice-runtime"
 {
@@ -163,6 +200,8 @@ marker="$runtime_root/.vibetalker-voice-runtime"
     echo "moshi-rag=$rag_revision"
     /usr/bin/shasum -a 256 \
         "$repo_root/Patches/moshi-mlx-rag-apple-silicon.patch" \
+        "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch" \
+        "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
         "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch"
 } > "$marker"
 
