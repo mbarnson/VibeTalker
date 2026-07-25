@@ -252,6 +252,80 @@ nonisolated struct ValidatedInteraction: Equatable, Sendable {
     let latency: Duration
 }
 
+nonisolated enum InteractionIntentPolicy {
+    static func reconcile(
+        _ output: InteractionOutput,
+        transcript: String
+    ) -> InteractionOutput {
+        let normalized = transcript
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = normalized.lowercased()
+        let words = lowercased
+            .split(whereSeparator: { !$0.isLetter })
+            .map(String.init)
+        let firstWord = words.first
+
+        let hypotheticalMarkers = [
+            "hypothetically", "if i asked", "if someone asked", "suppose ",
+            "imagine ", "quoted request", "quote:"
+        ]
+        let isHypothetical = hypotheticalMarkers.contains(where: lowercased.contains)
+
+        let operation: PiOperation?
+        if isHypothetical {
+            operation = nil
+        } else if ["stop", "cancel", "abort"].contains(firstWord)
+                    || lowercased.hasPrefix("please stop ")
+                    || lowercased.hasPrefix("please cancel ") {
+            operation = .cancel
+        } else if [
+            "add", "create", "fix", "implement", "improve", "refactor",
+            "rename", "update", "run", "test", "write", "document"
+        ].contains(firstWord) {
+            operation = .start
+        } else if isGroundedStatusRequest(lowercased) {
+            operation = .status
+        } else if [
+            "who", "what", "when", "where", "why", "how", "is", "does",
+            "explain", "tell", "define", "give", "summarize"
+        ].contains(firstWord) {
+            operation = nil
+        } else {
+            return output
+        }
+
+        let request = operation.map {
+            PiRequest(
+                operation: $0,
+                instruction: $0 == .start ? normalized : nil
+            )
+        }
+        return InteractionOutput(
+            utteranceID: output.utteranceID,
+            referenceResponse: output.referenceResponse,
+            piRequest: request
+        )
+    }
+
+    private static func isGroundedStatusRequest(_ transcript: String) -> Bool {
+        let subjects = [
+            " pi ", "pi ", "coding job", "coding task", "current task",
+            "sandbox", "sandbox task", "sandbox work", "job controller", "agent",
+            "any work", "coding progress", "coding request", "cancellation",
+            "requested edit", " job"
+        ]
+        let states = [
+            "doing", "status", "state", "running", "finished", "completed",
+            "complete", "active", "progress", "pending", "fail", "started",
+            "happening", "processing", "up to", "report", "idle", "working",
+            "verified"
+        ]
+        let padded = " \(transcript) "
+        return subjects.contains(where: padded.contains)
+            && states.contains(where: transcript.contains)
+    }
+}
+
 nonisolated enum InteractionValidationError: LocalizedError, Equatable {
     case staleUtterance
     case invalidReference

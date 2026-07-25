@@ -511,6 +511,36 @@ struct VibeTalkerTests {
         #expect(result.piRequest?.instruction == "Update README and verify the diff.")
     }
 
+    @Test func interactionIntentPolicyReconcilesOnlyClearTranscriptIntent() {
+        let output = InteractionOutput(
+            utteranceID: UUID(),
+            referenceResponse: "Model reference",
+            piRequest: nil
+        )
+        let cases: [(String, PiOperation?, String?)] = [
+            ("What is backpressure in a streaming system?", nil, nil),
+            ("Why freeze a scoring rubric first?", nil, nil),
+            (
+                "Fix the console so a running job rejects new work.",
+                .start,
+                "Fix the console so a running job rejects new work."
+            ),
+            ("Is pi idle or working?", .status, nil),
+            ("Has the requested edit been verified?", .status, nil),
+            ("Cancel the current coding job.", .cancel, nil),
+            ("Hypothetically, fix the parser.", nil, nil)
+        ]
+
+        for (transcript, operation, instruction) in cases {
+            let result = InteractionIntentPolicy.reconcile(
+                output,
+                transcript: transcript
+            )
+            #expect(result.piRequest?.operation == operation)
+            #expect(result.piRequest?.instruction == instruction)
+        }
+    }
+
     @Test func requestPolicySeparatesDirectConfirmableAndUnavailableWork() async {
         let policy = PiRequestPolicy(projectName: "Workspace")
         let direct = PiRequest(

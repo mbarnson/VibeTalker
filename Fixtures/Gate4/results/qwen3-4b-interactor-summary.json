@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-07-25",
+  "corpus": "Fixtures/Gate4/latency-corpus.json",
+  "runner": "scripts/run-gate4-interactor.py",
+  "model": "mlx-community--Qwen3-4B-Instruct-2507-4bit",
+  "endpoint": "http://127.0.0.1:8001/v1/responses",
+  "server": {
+    "source": "/Users/patbarnson/devel/omlx",
+    "version": "0.5.3",
+    "cache_enabled": false,
+    "warmed": true
+  },
+  "interaction_policy": {
+    "store": false,
+    "previous_response_id": false,
+    "maximum_reference_characters": 220,
+    "clear_intent_reconciliation": true
+  },
+  "result": {
+    "turn_count": 100,
+    "valid_count": 100,
+    "median_seconds": 0.990646,
+    "p95_seconds": 1.108751,
+    "over_three_seconds": 0,
+    "categories": {
+      "ordinary": {
+        "count": 60,
+        "valid": 60,
+        "median_seconds": 0.97422,
+        "p95_seconds": 1.089189
+      },
+      "dispatch": {
+        "count": 20,
+        "valid": 20,
+        "median_seconds": 1.062883,
+        "p95_seconds": 1.139437
+      },
+      "status": {
+        "count": 20,
+        "valid": 20,
+        "median_seconds": 1.008864,
+        "p95_seconds": 1.053451
+      }
+    }
+  },
+  "remaining_measurement": "Native endpointing, Coordinator, validation, and Moshi injection overhead must be measured separately before Gate 4 closes."
+}

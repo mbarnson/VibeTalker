@@ -1,7 +1,7 @@
 # Gate 4: fast Interactor baseline
 
-Status: **live Responses-to-MLX Reference path and Coordinator policy verified;
-frozen fidelity and latency corpora pending**
+Status: **frozen 100-turn oMLX Responses corpus passed; native endpointing and
+Moshi-injection overhead measurement pending**
 
 ## Current checkpoint
 
@@ -85,7 +85,65 @@ fixtures.
 
 ## Remaining Gate 4 work
 
-- Run the frozen fidelity and latency corpora and publish measured native
-  overhead plus remaining model allowances.
+- Publish measured native endpointing, Coordinator, validation, and
+  Moshi-injection overhead plus the remaining model allowances.
 - Compare the frozen neutral and heuristic-gated Interaction-miss corpus and
   record whether the current heuristic wording remains the release choice.
+
+## Frozen Responses corpus
+
+The frozen corpus at `Fixtures/Gate4/latency-corpus.json` contains exactly 60
+ordinary conversation turns, 20 direct dispatch turns, and 20 grounded-status
+turns. `scripts/run-gate4-interactor.py` sends the same strict Responses schema
+and developer contract as the native Interactor, enforces a hard per-turn
+deadline, records raw and reconciled intent, and calculates nearest-rank
+percentiles.
+
+The viable local model is
+`mlx-community--Qwen3-4B-Instruct-2507-4bit`. The smaller
+`mlx-community--Qwen3-0.6B-8bit` was rejected despite roughly 0.46-second
+median latency: before explicit examples it classified 0/3 direct requests
+and 0/3 status requests, and after explicit rules it over-dispatched all three
+ordinary questions in the balanced smoke slice.
+
+The final warmed 4B run used the source checkout at
+`/Users/patbarnson/devel/omlx`, oMLX 0.5.3, on loopback with tiered caching
+disabled. The retained aggregate result is
+`Fixtures/Gate4/results/qwen3-4b-interactor-summary.json`:
+
+- 100/100 final validated dispositions;
+- 0.990646-second median and 1.108751-second p95 across all References;
+- 1.062883-second median and 1.139437-second p95 for dispatch decisions;
+- 1.008864-second median and 1.053451-second p95 for status decisions; and
+- zero turns above three seconds.
+
+The final disposition includes deterministic reconciliation for only
+unambiguous transcript forms: explicit status/cancel phrases, direct
+imperatives beginning with the frozen action vocabulary, informational
+question forms, and explicit hypothetical language. Everything else retains
+the model result and still passes through the shared Coordinator policy. This
+made clear intent non-probabilistic without creating a trigger phrase.
+
+Dynamic utterance identity is bound locally to the originating URLSession task
+rather than trusted to model text. The model-provided UUID remains part of the
+strict schema for diagnostics, but cannot redirect a result to another
+utterance. This preserves stale-result rejection at the Coordinator admission
+boundary without making a probabilistic UUID echo the transport authority.
+
+## oMLX state and cache findings
+
+Unbounded `previous_response_id` continuity failed both latency and
+correctness. With cache disabled, the 4B model rose from 1.064 seconds on turn
+one to 4.357 seconds by turn 25 as the complete prior conversation was
+re-prefilled. With the configured tiered cache enabled, the third chained
+0.6B turn logged a cache hit, failed to restore the referenced block, reported
+failed paged-cache reconstruction, and then made no generation progress until
+the client disconnected 55 seconds later.
+
+Short two- and four-turn chains reduced the latency growth but still caused
+occasional prior-UUID echoes. Slice One therefore uses the Responses endpoint
+without stored cross-turn state: `store` is false and
+`previous_response_id` is absent. The narrow Interactor sees the current
+committed transcript; authoritative conversation, job, and proposal state
+remains in the native Coordinator. This is both faster and safer for the
+actual boundary while preserving the user-selected Responses API.
