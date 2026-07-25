@@ -4,25 +4,99 @@ nonisolated protocol InteractionServing: Sendable {
     func interact(with utterance: CommittedUtterance) async throws -> ValidatedInteraction
 }
 
+nonisolated enum ResponsesTransport: Equatable, Sendable {
+    case serverSentEvents
+    case webSocket
+}
+
 nonisolated struct InteractorConfiguration: Sendable {
     let endpoint: URL
     let model: String
     let apiKey: String?
     let reasoningEffort: String?
     let timeout: Duration
+    let transport: ResponsesTransport
 
     init(
         endpoint: URL,
         model: String,
         apiKey: String? = nil,
         reasoningEffort: String? = nil,
-        timeout: Duration = .seconds(2)
+        timeout: Duration = .seconds(2),
+        transport: ResponsesTransport = .serverSentEvents
     ) {
         self.endpoint = endpoint
         self.model = model
         self.apiKey = apiKey
         self.reasoningEffort = reasoningEffort
         self.timeout = timeout
+        self.transport = transport
+    }
+}
+
+private final class ResponsesWebSocketDelegate:
+    NSObject,
+    URLSessionWebSocketDelegate,
+    @unchecked Sendable
+{
+    private let lock = NSLock()
+    private var openWaiters: [
+        Int: CheckedContinuation<Void, any Error>
+    ] = [:]
+
+    func connect(_ task: URLSessionWebSocketTask) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            lock.lock()
+            openWaiters[task.taskIdentifier] = continuation
+            lock.unlock()
+            task.resume()
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didOpenWithProtocol protocol: String?
+    ) {
+        finish(webSocketTask, with: .success(()))
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        webSocketTask: URLSessionWebSocketTask,
+        didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
+        reason: Data?
+    ) {
+        finish(
+            webSocketTask,
+            with: .failure(URLError(.networkConnectionLost))
+        )
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: (any Error)?
+    ) {
+        guard let webSocketTask = task as? URLSessionWebSocketTask else {
+            return
+        }
+        finish(
+            webSocketTask,
+            with: .failure(error ?? URLError(.cannotConnectToHost))
+        )
+    }
+
+    private func finish(
+        _ task: URLSessionWebSocketTask,
+        with result: Result<Void, any Error>
+    ) {
+        lock.lock()
+        let continuation = openWaiters.removeValue(
+            forKey: task.taskIdentifier
+        )
+        lock.unlock()
+        continuation?.resume(with: result)
     }
 }
 
@@ -58,6 +132,10 @@ nonisolated enum InteractorError: LocalizedError {
 actor ResponsesInteractor: InteractionServing {
     private let configuration: InteractorConfiguration
     private let session: URLSession
+    private let webSocketDelegate: ResponsesWebSocketDelegate
+    private let webSocketSession: URLSession
+    private var previousResponseID: String?
+    private var webSocketTask: URLSessionWebSocketTask?
 
     init(
         configuration: InteractorConfiguration,
@@ -65,31 +143,46 @@ actor ResponsesInteractor: InteractionServing {
     ) {
         self.configuration = configuration
         self.session = session
+        let webSocketDelegate = ResponsesWebSocketDelegate()
+        self.webSocketDelegate = webSocketDelegate
+        self.webSocketSession = URLSession(
+            configuration: .ephemeral,
+            delegate: webSocketDelegate,
+            delegateQueue: nil
+        )
     }
 
     func interact(with utterance: CommittedUtterance) async throws -> ValidatedInteraction {
         let requestID = UUID()
         let clock = ContinuousClock()
         let started = clock.now
+        let chainedResponseID = previousResponseID
 
-        let providerResult = try await withThrowingTaskGroup(
-            of: ProviderResult.self
-        ) { group in
-            group.addTask {
-                try await self.performRequest(
-                    utterance: utterance,
-                    previousResponseID: nil
-                )
+        let providerResult = try await withTaskCancellationHandler {
+            try await withThrowingTaskGroup(
+                of: ProviderResult.self
+            ) { group in
+                group.addTask {
+                    try await self.performRequest(
+                        utterance: utterance,
+                        previousResponseID: chainedResponseID
+                    )
+                }
+                group.addTask {
+                    try await Task.sleep(for: self.configuration.timeout)
+                    await self.cancelActiveWebSocket()
+                    throw CancellationError()
+                }
+                guard let first = try await group.next() else {
+                    throw CancellationError()
+                }
+                group.cancelAll()
+                return first
             }
-            group.addTask {
-                try await Task.sleep(for: self.configuration.timeout)
-                throw CancellationError()
+        } onCancel: {
+            Task {
+                await self.cancelActiveWebSocket()
             }
-            guard let first = try await group.next() else {
-                throw CancellationError()
-            }
-            group.cancelAll()
-            return first
         }
 
         let decoded: InteractionOutput
@@ -111,6 +204,7 @@ actor ResponsesInteractor: InteractionServing {
             transcript: utterance.transcript
         )
         let validated = try InteractionValidator.validate(reconciled, for: utterance)
+        previousResponseID = providerResult.responseID
 
         return ValidatedInteraction(
             requestID: requestID,
@@ -126,6 +220,33 @@ actor ResponsesInteractor: InteractionServing {
         utterance: CommittedUtterance,
         previousResponseID: String?
     ) async throws -> ProviderResult {
+        switch configuration.transport {
+        case .serverSentEvents:
+            return try await performSSERequest(
+                utterance: utterance,
+                previousResponseID: previousResponseID
+            )
+        case .webSocket:
+            do {
+                return try await performWebSocketRequest(
+                    utterance: utterance,
+                    previousResponseID: previousResponseID
+                )
+            } catch ResponsesWebSocketError.restartChain {
+                cancelActiveWebSocket()
+                self.previousResponseID = nil
+                return try await performWebSocketRequest(
+                    utterance: utterance,
+                    previousResponseID: nil
+                )
+            }
+        }
+    }
+
+    private func performSSERequest(
+        utterance: CommittedUtterance,
+        previousResponseID: String?
+    ) async throws -> ProviderResult {
         var request = URLRequest(url: configuration.endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -135,7 +256,8 @@ actor ResponsesInteractor: InteractionServing {
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody(
             utterance: utterance,
-            previousResponseID: previousResponseID
+            previousResponseID: previousResponseID,
+            streaming: true
         ))
 
         let (bytes, response) = try await session.bytes(for: request)
@@ -163,14 +285,114 @@ actor ResponsesInteractor: InteractionServing {
         throw InteractorError.streamEndedBeforeCompletion
     }
 
-    private func requestBody(
+    private func performWebSocketRequest(
         utterance: CommittedUtterance,
         previousResponseID: String?
+    ) async throws -> ProviderResult {
+        let task = try await webSocket()
+        var event = requestBody(
+            utterance: utterance,
+            previousResponseID: previousResponseID,
+            streaming: false
+        )
+        event["type"] = "response.create"
+        let data = try JSONSerialization.data(withJSONObject: event)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw InteractorError.invalidConfiguration
+        }
+
+        do {
+            do {
+                try await task.send(.string(text))
+            } catch {
+                throw InteractorError.providerStreamFailure(
+                    "WebSocket send failed: \(error.localizedDescription)"
+                )
+            }
+            let decoder = ResponsesEventDecoder()
+            while !Task.isCancelled {
+                let message: URLSessionWebSocketTask.Message
+                do {
+                    message = try await task.receive()
+                } catch {
+                    throw InteractorError.providerStreamFailure(
+                        "WebSocket receive failed: \(error.localizedDescription)"
+                    )
+                }
+                let payload: Data
+                switch message {
+                case .data(let data):
+                    payload = data
+                case .string(let string):
+                    payload = Data(string.utf8)
+                @unknown default:
+                    continue
+                }
+                if let result = try decoder.consume(payload) {
+                    return result
+                }
+            }
+            throw CancellationError()
+        } catch {
+            cancelActiveWebSocket()
+            throw error
+        }
+    }
+
+    private func webSocket() async throws -> URLSessionWebSocketTask {
+        if let webSocketTask {
+            return webSocketTask
+        }
+        guard var components = URLComponents(
+            url: configuration.endpoint,
+            resolvingAgainstBaseURL: false
+        ) else {
+            throw InteractorError.invalidConfiguration
+        }
+        switch components.scheme?.lowercased() {
+        case "https":
+            components.scheme = "wss"
+        case "http":
+            components.scheme = "ws"
+        case "wss", "ws":
+            break
+        default:
+            throw InteractorError.invalidConfiguration
+        }
+        guard let URL = components.url else {
+            throw InteractorError.invalidConfiguration
+        }
+        var request = URLRequest(url: URL)
+        if let apiKey = configuration.apiKey {
+            request.setValue(
+                "Bearer \(apiKey)",
+                forHTTPHeaderField: "Authorization"
+            )
+        }
+        let task = webSocketSession.webSocketTask(with: request)
+        webSocketTask = task
+        do {
+            try await webSocketDelegate.connect(task)
+        } catch {
+            webSocketTask = nil
+            throw error
+        }
+        return task
+    }
+
+    private func cancelActiveWebSocket() {
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
+        webSocketTask = nil
+    }
+
+    private func requestBody(
+        utterance: CommittedUtterance,
+        previousResponseID: String?,
+        streaming: Bool
     ) -> [String: Any] {
         var body: [String: Any] = [
             "model": configuration.model,
             "store": false,
-            "stream": true,
             "instructions": Self.developerInstructions,
             "input": [[
                 "role": "user",
@@ -191,6 +413,9 @@ actor ResponsesInteractor: InteractionServing {
                 ]
             ]
         ]
+        if streaming {
+            body["stream"] = true
+        }
         if let previousResponseID {
             body["previous_response_id"] = previousResponseID
         }
@@ -271,8 +496,13 @@ nonisolated struct ProviderResult: Equatable, Sendable {
     let structuredText: String
 }
 
+private nonisolated enum ResponsesWebSocketError: Error {
+    case restartChain
+}
+
 nonisolated struct ResponsesEnvelope: Decodable {
     struct ProviderError: Decodable {
+        let code: String?
         let message: String?
     }
 
@@ -310,6 +540,7 @@ nonisolated struct ResponsesEnvelope: Decodable {
 
 nonisolated struct ResponsesSSEDecoder {
     private var eventName: String?
+    private let eventDecoder = ResponsesEventDecoder()
 
     mutating func consume(_ line: String) throws -> ProviderResult? {
         if line.hasPrefix("event:") {
@@ -327,9 +558,20 @@ nonisolated struct ResponsesSSEDecoder {
         let payload = String(line.dropFirst("data:".count))
             .trimmingCharacters(in: .whitespaces)
         guard payload != "[DONE]", !payload.isEmpty else { return nil }
-        let data = Data(payload.utf8)
+        return try eventDecoder.consume(
+            Data(payload.utf8),
+            fallbackType: eventName
+        )
+    }
+}
+
+nonisolated struct ResponsesEventDecoder {
+    func consume(
+        _ data: Data,
+        fallbackType: String? = nil
+    ) throws -> ProviderResult? {
         let event = try JSONDecoder().decode(ResponsesStreamEvent.self, from: data)
-        let type = event.type ?? eventName
+        let type = event.type ?? fallbackType
 
         switch type {
         case "response.completed":
@@ -342,6 +584,11 @@ nonisolated struct ResponsesSSEDecoder {
                 structuredText: structuredText
             )
         case "response.failed", "error":
+            let code = event.error?.code ?? event.response?.error?.code
+            if code == "previous_response_not_found"
+                || code == "websocket_connection_limit_reached" {
+                throw ResponsesWebSocketError.restartChain
+            }
             throw InteractorError.providerStreamFailure(
                 event.error?.message
                     ?? event.response?.error?.message
@@ -355,6 +602,7 @@ nonisolated struct ResponsesSSEDecoder {
 
 private nonisolated struct ResponsesStreamEvent: Decodable {
     struct ProviderError: Decodable {
+        let code: String?
         let message: String?
     }
 

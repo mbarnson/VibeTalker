@@ -494,7 +494,8 @@ final class AppModel {
                     endpoint: endpointURL,
                     model: modelID,
                     apiKey: interactionKey,
-                    reasoningEffort: interactionProvider.reasoningEffort
+                    reasoningEffort: interactionProvider.reasoningEffort,
+                    transport: interactionProvider.transport
                 ))
                 let coordinator = ConversationCoordinator(
                     interactor: interactor,

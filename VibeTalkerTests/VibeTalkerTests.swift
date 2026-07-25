@@ -18,8 +18,9 @@ struct VibeTalkerTests {
         let preferences = AppPreferences(defaults: defaults)
         #expect(preferences.codingProvider == .anthropic)
         #expect(preferences.codingBaseURL == AppPreferences.defaultCodingBaseURL)
-        #expect(preferences.interactionProvider == .responsesCompatible)
+        #expect(preferences.interactionProvider == .openAIResponses)
         #expect(preferences.interactionEndpoint == AppPreferences.defaultInteractionEndpoint)
+        #expect(preferences.interactionModelID == "gpt-5.6-luna")
 
         preferences.codingProvider = .responsesCompatible
         preferences.codingBaseURL = "http://127.0.0.1:8000/v1"
@@ -40,11 +41,17 @@ struct VibeTalkerTests {
     @Test func interactionProvidersKeepCredentialsAndLatencyPolicySeparate() {
         #expect(InteractionProvider.openAIResponses.credentialProvider == .openAI)
         #expect(InteractionProvider.openAIResponses.reasoningEffort == "none")
+        #expect(InteractionProvider.openAIResponses.transport == .webSocket)
+        #expect(
+            InteractionProvider.openAIResponses.defaultEndpoint
+                == "https://api.openai.com/v1/responses"
+        )
         #expect(
             InteractionProvider.responsesCompatible.credentialProvider
                 == .responsesCompatible
         )
         #expect(InteractionProvider.responsesCompatible.reasoningEffort == nil)
+        #expect(InteractionProvider.responsesCompatible.transport == .webSocket)
     }
 
     @Test func voiceReadinessRequiresSuccessfulMoshiClientPage() throws {
@@ -789,6 +796,31 @@ struct VibeTalkerTests {
             try decoder.consume(
                 #"data: {"type":"response.failed","response":{"id":"resp_bad","error":{"message":"model unavailable"}}}"#
             )
+        }
+    }
+
+    @Test func responsesWebSocketDecoderRequiresCompletedTypedEvent() throws {
+        let decoder = ResponsesEventDecoder()
+        #expect(try decoder.consume(Data(
+            #"{"type":"response.output_text.delta","delta":"partial"}"#.utf8
+        )) == nil)
+
+        let completed = try decoder.consume(Data(
+            #"{"type":"response.completed","response":{"id":"resp_ws","output_text":"{\"utterance_id\":\"00000000-0000-0000-0000-000000000002\"}"}}"#.utf8
+        ))
+        #expect(completed == ProviderResult(
+            responseID: "resp_ws",
+            structuredText:
+                #"{"utterance_id":"00000000-0000-0000-0000-000000000002"}"#
+        ))
+    }
+
+    @Test func responsesWebSocketDecoderRestartsAnEvictedChain() {
+        let decoder = ResponsesEventDecoder()
+        #expect(throws: (any Error).self) {
+            try decoder.consume(Data(
+                #"{"type":"error","status":400,"error":{"code":"previous_response_not_found","message":"Previous response not found"}}"#.utf8
+            ))
         }
     }
 

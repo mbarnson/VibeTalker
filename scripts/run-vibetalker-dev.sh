@@ -2,8 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-interaction_provider="${1:-responses-compatible}"
-coding_provider="${2:-$interaction_provider}"
+interaction_provider="${1:-openai}"
+coding_provider="${2:-anthropic}"
 env_file="${VIBETALKER_ENV_FILE:-$repo_root/.env}"
 
 environment_key_for_provider() {

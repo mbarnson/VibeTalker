@@ -2,7 +2,10 @@ import Foundation
 
 nonisolated struct AppPreferences {
     static let defaultCodingBaseURL = "http://127.0.0.1:8000/v1"
-    static let defaultInteractionEndpoint = "http://127.0.0.1:8000/v1/responses"
+    static let defaultInteractionEndpoint =
+        InteractionProvider.openAIResponses.defaultEndpoint
+    static let defaultInteractionModelID =
+        InteractionProvider.openAIResponses.defaultModelID
 
     private enum Key {
         static let codingProvider = "codingProvider"
@@ -63,7 +66,7 @@ nonisolated struct AppPreferences {
         get {
             guard let rawValue = defaults.string(forKey: Key.interactionProvider),
                   let provider = InteractionProvider(rawValue: rawValue) else {
-                return .responsesCompatible
+                return .openAIResponses
             }
             return provider
         }
@@ -73,7 +76,10 @@ nonisolated struct AppPreferences {
     }
 
     var interactionModelID: String {
-        get { defaults.string(forKey: Key.interactionModelID) ?? "" }
+        get {
+            defaults.string(forKey: Key.interactionModelID)
+                ?? Self.defaultInteractionModelID
+        }
         nonmutating set {
             defaults.set(newValue, forKey: Key.interactionModelID)
         }

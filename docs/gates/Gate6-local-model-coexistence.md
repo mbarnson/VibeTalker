@@ -91,3 +91,42 @@ VibeTalker exposes the provider choices without a silent fallback. The user
 must knowingly select and configure the release path. The existing local
 Responses-compatible mode remains available for development and measurement,
 but it is not Gate 6-approved for concurrent full-duplex use.
+
+### Release-default transport
+
+The app now makes the Gate 6-approved choice explicit for a fresh
+configuration:
+
+- Interaction defaults to hosted OpenAI Responses using
+  `gpt-5.6-luna`, the same low-latency model measured above.
+- Both Interaction choices use Responses WebSocket mode. The configured
+  `http` or `https` endpoint is upgraded to `ws` or `wss` internally.
+- The hosted choice is labeled as the release path. The local
+  Responses-compatible choice remains available and is labeled as a
+  development path that can disrupt active Moshi audio under Metal load.
+- Coding continues to default to hosted Anthropic. No provider silently falls
+  back to another provider or transport.
+- `scripts/run-vibetalker-dev.sh` now follows the same release-safe default
+  (`openai` Interaction plus `anthropic` coding); local/local remains an
+  explicit command-line choice for measurement.
+
+The native Interactor maintains one persistent WebSocket and sends a
+`response.create` text frame per committed utterance. It retains the completed
+response ID and sends only the new utterance with `previous_response_id` on the
+next turn. With `store=false`, an evicted continuation or the server's
+60-minute connection limit closes the socket and restarts a full request chain
+without changing providers. A two-turn live smoke test is reproducible with
+`scripts/run-responses-websocket-smoke.swift`.
+
+The transport follows OpenAI's published WebSocket mode and event contract:
+
+- <https://developers.openai.com/api/docs/guides/websocket-mode>
+- <https://developers.openai.com/api/reference/resources/responses/websocket-events>
+
+The accepted result is frozen at
+`Fixtures/Gate6/results/openai-responses-websocket-smoke.json`. The first turn
+completed in 1.425 seconds and the context-dependent continuation completed in
+0.731 seconds on the same persistent connection. Both returned distinct
+provider response IDs and valid typed Interaction output. The API key was read
+from the process environment and was neither printed nor written to the
+fixture.

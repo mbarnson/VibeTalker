@@ -65,8 +65,8 @@ nonisolated enum InteractionProvider: String, CaseIterable, Identifiable, Sendab
 
     var displayName: String {
         switch self {
-        case .openAIResponses: "OpenAI Responses"
-        case .responsesCompatible: "Responses-compatible"
+        case .openAIResponses: "OpenAI Responses (WebSocket)"
+        case .responsesCompatible: "Responses-compatible (WebSocket)"
         }
     }
 
@@ -81,6 +81,33 @@ nonisolated enum InteractionProvider: String, CaseIterable, Identifiable, Sendab
         switch self {
         case .openAIResponses: "none"
         case .responsesCompatible: nil
+        }
+    }
+
+    var defaultEndpoint: String {
+        switch self {
+        case .openAIResponses: "https://api.openai.com/v1/responses"
+        case .responsesCompatible: "http://127.0.0.1:8000/v1/responses"
+        }
+    }
+
+    var defaultModelID: String {
+        switch self {
+        case .openAIResponses: "gpt-5.6-luna"
+        case .responsesCompatible: ""
+        }
+    }
+
+    var transport: ResponsesTransport {
+        .webSocket
+    }
+
+    var releaseGuidance: String {
+        switch self {
+        case .openAIResponses:
+            "Gate 6 release path: hosted Responses avoids competing with Moshi for Metal."
+        case .responsesCompatible:
+            "Development path: local generation can disrupt active Moshi audio under Metal load."
         }
     }
 }

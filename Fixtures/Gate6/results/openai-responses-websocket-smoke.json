@@ -1,0 +1,21 @@
+{
+  "endpoint": "https://api.openai.com/v1/responses",
+  "model": "gpt-5.6-luna",
+  "passed": true,
+  "schema_version": 1,
+  "transport": "websocket",
+  "turns": [
+    {
+      "elapsed_seconds": 1.4249378340000001,
+      "pi_request": null,
+      "reference": "A persistent WebSocket keeps one connection open, enabling low-latency, two-way communication without repeated connection setup.",
+      "response_id": "resp_0ac71d8411b28583016a65210732f0819a85f1703a2c2041f2"
+    },
+    {
+      "elapsed_seconds": 0.73102104199999995,
+      "pi_request": null,
+      "reference": "One connection enables fast, bidirectional communication.",
+      "response_id": "resp_0ac71d8411b28583016a65210852d4819a925a5cd29491f466"
+    }
+  ]
+}

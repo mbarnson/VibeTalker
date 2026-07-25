@@ -71,6 +71,10 @@ struct ContentView: View {
                         }
                         .labelsHidden()
                         .onChange(of: model.interactionProvider) {
+                            model.interactionEndpoint =
+                                model.interactionProvider.defaultEndpoint
+                            model.interactionModelID =
+                                model.interactionProvider.defaultModelID
                             model.interactionCredentialInput = ""
                             model.refreshInteractionCredentialStatus()
                         }
@@ -97,6 +101,18 @@ struct ContentView: View {
                     )
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("interaction-model-id")
+                    Label(
+                        model.interactionProvider.releaseGuidance,
+                        systemImage: model.interactionProvider == .openAIResponses
+                            ? "checkmark.shield"
+                            : "exclamationmark.triangle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        model.interactionProvider == .openAIResponses
+                            ? Color.secondary
+                            : Color.orange
+                    )
                     HStack {
                         SecureField(
                             "\(model.interactionProvider.displayName) API key",
