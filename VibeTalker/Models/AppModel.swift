@@ -81,7 +81,10 @@ final class AppModel {
         self.referenceBridge = referenceBridge
         let referenceAdapter = MoshiChatCompletionsAdapter(bridge: referenceBridge)
         self.referenceAdapter = referenceAdapter
-        self.referenceServer = LoopbackReferenceServer(adapter: referenceAdapter)
+        self.referenceServer = LoopbackReferenceServer(
+            adapter: referenceAdapter,
+            bridge: referenceBridge
+        )
         self.moshiReferenceClient = moshiReferenceClient
         self.credentialStore = credentialStore
         self.voiceRuntimeImporter = voiceRuntimeImporter

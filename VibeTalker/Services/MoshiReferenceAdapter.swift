@@ -109,14 +109,18 @@ actor MoshiReferenceBridge: ReferenceDelivering {
         await events(.reference, "Reference: \(delivery.text)")
     }
 
-    func resolve(_ transcript: String) async throws -> ReferenceDelivery {
+    func commit(
+        utteranceID: UUID,
+        revision: UInt64,
+        transcript: String
+    ) async throws -> ReferenceDelivery {
         guard let voiceSessionID, let commitHandler else {
             throw MoshiReferenceAdapterError.inactiveSession
         }
         let utterance = CommittedUtterance(
             voiceSessionID: voiceSessionID,
-            utteranceID: UUID(),
-            revision: 1,
+            utteranceID: utteranceID,
+            revision: revision,
             transcript: transcript
         )
         await events(.transcript, "Committed ASR: \(transcript)")
@@ -126,6 +130,14 @@ actor MoshiReferenceBridge: ReferenceDelivering {
             throw MoshiReferenceAdapterError.referenceNotDelivered
         }
         return turn.reference
+    }
+
+    func resolve(_ transcript: String) async throws -> ReferenceDelivery {
+        try await commit(
+            utteranceID: UUID(),
+            revision: 1,
+            transcript: transcript
+        )
     }
 }
 

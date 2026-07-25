@@ -34,6 +34,7 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
     }
 
     private let adapter: MoshiChatCompletionsAdapter
+    private let bridge: MoshiReferenceBridge
     private let queue = DispatchQueue(
         label: "org.barnson.VibeTalker.reference-adapter",
         qos: .userInitiated
@@ -41,8 +42,12 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
     private let lock = NSLock()
     private var listener: NWListener?
 
-    init(adapter: MoshiChatCompletionsAdapter) {
+    init(
+        adapter: MoshiChatCompletionsAdapter,
+        bridge: MoshiReferenceBridge
+    ) {
         self.adapter = adapter
+        self.bridge = bridge
     }
 
     func start(port rawPort: UInt16 = defaultPort) async throws -> URL {
@@ -125,11 +130,69 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
                 body: Data(#"{"status":"ready"}"#.utf8)
             )
         }
+        if request.method == "POST", request.path == "/v1/transcripts" {
+            return try await commitTranscript(request.body)
+        }
         guard request.method == "POST",
               request.path == "/v1/chat/completions" else {
             throw LoopbackReferenceServerError.invalidRequest
         }
         return try await adapter.respond(to: request.body)
+    }
+
+    private func commitTranscript(_ body: Data) async throws -> MoshiChatCompletionResult {
+        struct TranscriptRequest: Decodable {
+            let utteranceID: UUID
+            let revision: UInt64
+            let transcript: String
+            let committed: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case utteranceID = "utterance_id"
+                case revision
+                case transcript
+                case committed
+            }
+        }
+
+        struct TranscriptResponse: Encodable {
+            let accepted: Bool
+            let utteranceID: UUID
+            let interactionRequestID: UUID
+
+            enum CodingKeys: String, CodingKey {
+                case accepted
+                case utteranceID = "utterance_id"
+                case interactionRequestID = "interaction_request_id"
+            }
+        }
+
+        let request: TranscriptRequest
+        do {
+            request = try JSONDecoder().decode(TranscriptRequest.self, from: body)
+        } catch {
+            throw LoopbackReferenceServerError.invalidRequest
+        }
+        guard request.committed,
+              request.revision > 0,
+              !request.transcript
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty else {
+            throw LoopbackReferenceServerError.invalidRequest
+        }
+        let reference = try await bridge.commit(
+            utteranceID: request.utteranceID,
+            revision: request.revision,
+            transcript: request.transcript
+        )
+        return MoshiChatCompletionResult(
+            statusCode: 200,
+            body: try JSONEncoder().encode(TranscriptResponse(
+                accepted: true,
+                utteranceID: reference.utteranceID,
+                interactionRequestID: reference.interactionRequestID
+            ))
+        )
     }
 
     private static func receiveRequest(from connection: NWConnection) async throws -> HTTPRequest {

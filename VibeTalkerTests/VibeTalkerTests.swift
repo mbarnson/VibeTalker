@@ -635,7 +635,10 @@ struct VibeTalkerTests {
             try await coordinator.commit(utterance)
         }
         let adapter = MoshiChatCompletionsAdapter(bridge: bridge)
-        let server = LoopbackReferenceServer(adapter: adapter)
+        let server = LoopbackReferenceServer(
+            adapter: adapter,
+            bridge: bridge
+        )
         let baseURL = try await server.start()
         defer { server.stop() }
 
@@ -661,6 +664,52 @@ struct VibeTalkerTests {
         let choice = try #require(choices.first)
         let message = try #require(choice["message"] as? [String: Any])
         #expect(message["content"] as? String == "Cobalt is the verification color.")
+    }
+
+    @Test func loopbackReferenceServerCommitsCanonicalTranscript() async throws {
+        let interactor = StubInteractor(
+            reference: "The transcript reached the Coordinator.",
+            piRequest: nil
+        )
+        let bridge = MoshiReferenceBridge()
+        let coordinator = ConversationCoordinator(
+            interactor: interactor,
+            piDispatcher: StubPiDispatcher(
+                receipt: .status(projectName: "Workspace", summary: "Idle")
+            ),
+            referenceDelivery: bridge
+        )
+        let sessionID = UUID()
+        let utteranceID = UUID()
+        await coordinator.beginVoiceSession(sessionID)
+        await bridge.beginSession(sessionID) { utterance in
+            try await coordinator.commit(utterance)
+        }
+        let server = LoopbackReferenceServer(
+            adapter: MoshiChatCompletionsAdapter(bridge: bridge),
+            bridge: bridge
+        )
+        let baseURL = try await server.start()
+        defer { server.stop() }
+
+        var request = URLRequest(url: baseURL.appending(path: "transcripts"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "utterance_id": utteranceID.uuidString,
+            "revision": 1,
+            "transcript": "Send this canonical transcript.",
+            "committed": true
+        ])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        #expect((response as? HTTPURLResponse)?.statusCode == 200)
+        let payload = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        #expect(payload["accepted"] as? Bool == true)
+        #expect(payload["utterance_id"] as? String == utteranceID.uuidString)
+        #expect(await interactor.callCount() == 1)
     }
 
     @Test func piJobControllerSerializesTypedAndVoiceAdmission() async throws {
