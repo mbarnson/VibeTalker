@@ -614,7 +614,7 @@ final class AppModel {
         await referenceBridge.setDeliverySink { _ in }
         await referenceBridge.setProactiveDeliverySink { _ in }
         await referenceAdapter.reset()
-        referenceServer.stop()
+        await referenceServer.stopAndWait()
         referenceAdapterReady = false
         conversationCoordinator = nil
         voiceSessionID = nil

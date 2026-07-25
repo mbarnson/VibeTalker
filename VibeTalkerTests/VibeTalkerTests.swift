@@ -1267,6 +1267,26 @@ struct VibeTalkerTests {
         #expect(await interactor.callCount() == 1)
     }
 
+    @Test func loopbackReferenceServerCanRestartImmediatelyOnTheSamePort() async throws {
+        let bridge = MoshiReferenceBridge()
+        let server = LoopbackReferenceServer(
+            adapter: MoshiChatCompletionsAdapter(bridge: bridge),
+            bridge: bridge
+        )
+        let firstURL = try await server.start(port: 0)
+        let port = try #require(firstURL.port)
+
+        server.stop()
+
+        let secondURL = try await server.start(port: UInt16(port))
+        defer { server.stop() }
+        let healthURL = URL(string: "http://127.0.0.1:\(secondURL.port!)/health")!
+        let (data, response) = try await URLSession.shared.data(from: healthURL)
+
+        #expect((response as? HTTPURLResponse)?.statusCode == 200)
+        #expect(String(decoding: data, as: UTF8.self) == #"{"status":"ready"}"#)
+    }
+
     @Test func piJobControllerSerializesTypedAndVoiceAdmission() async throws {
         let rpc = StubPiRPCRequester()
         let jobs = PiJobController(rpc: rpc, projectName: "Workspace")

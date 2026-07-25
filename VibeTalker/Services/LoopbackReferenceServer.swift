@@ -40,7 +40,12 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
         qos: .userInitiated
     )
     private let lock = NSLock()
-    private var listener: NWListener?
+    private var listener: ListenerRecord?
+
+    private struct ListenerRecord {
+        let listener: NWListener
+        let cancellation: ListenerCancellation
+    }
 
     init(
         adapter: MoshiChatCompletionsAdapter,
@@ -51,6 +56,7 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
     }
 
     func start(port rawPort: UInt16 = defaultPort) async throws -> URL {
+        await stopAndWait()
         guard let port = NWEndpoint.Port(rawValue: rawPort) else {
             throw LoopbackReferenceServerError.invalidPort
         }
@@ -62,15 +68,18 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
         )
         let listener = try NWListener(using: parameters)
         let start = ListenerStart()
+        let cancellation = ListenerCancellation()
         listener.stateUpdateHandler = { state in
             switch state {
             case .ready:
                 start.succeed()
             case .failed(let error):
+                cancellation.finish()
                 start.fail(LoopbackReferenceServerError.listenerFailed(
                     error.localizedDescription
                 ))
             case .cancelled:
+                cancellation.finish()
                 start.fail(LoopbackReferenceServerError.listenerFailed(
                     "listener cancelled before becoming ready"
                 ))
@@ -83,8 +92,10 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
         }
 
         lock.withLock {
-            self.listener?.cancel()
-            self.listener = listener
+            self.listener = ListenerRecord(
+                listener: listener,
+                cancellation: cancellation
+            )
         }
         listener.start(queue: queue)
         try await start.wait()
@@ -96,12 +107,23 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
     }
 
     func stop() {
-        let listener = lock.withLock {
+        let record = lock.withLock { listener }
+        record?.listener.cancel()
+    }
+
+    func stopAndWait() async {
+        let record = takeListener()
+        guard let record else { return }
+        record.listener.cancel()
+        await record.cancellation.wait()
+    }
+
+    private func takeListener() -> ListenerRecord? {
+        lock.withLock {
             let current = self.listener
             self.listener = nil
             return current
         }
-        listener?.cancel()
     }
 
     private func accept(_ connection: NWConnection) {
@@ -321,6 +343,38 @@ nonisolated final class LoopbackReferenceServer: @unchecked Sendable {
                 }
             )
         }
+    }
+}
+
+private nonisolated final class ListenerCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var finished = false
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            let resumeImmediately = lock.withLock {
+                if finished {
+                    return true
+                }
+                self.continuation = continuation
+                return false
+            }
+            if resumeImmediately {
+                continuation.resume()
+            }
+        }
+    }
+
+    func finish() {
+        let continuation: CheckedContinuation<Void, Never>? = lock.withLock {
+            guard !finished else { return nil }
+            finished = true
+            let current = self.continuation
+            self.continuation = nil
+            return current
+        }
+        continuation?.resume()
     }
 }
 
