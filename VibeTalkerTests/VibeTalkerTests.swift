@@ -310,6 +310,12 @@ struct VibeTalkerTests {
         #expect(moshi.environment["LLM_API_KEY"] == "loopback-only")
         let quantizedIndex = try #require(moshi.arguments.firstIndex(of: "--quantized"))
         #expect(moshi.arguments[quantizedIndex + 1] == "8")
+        let stepsIndex = try #require(moshi.arguments.firstIndex(of: "--steps"))
+        #expect(moshi.arguments[stepsIndex + 1] == "12000")
+        let mimiSequenceIndex = try #require(
+            moshi.arguments.firstIndex(of: "--mimi-max-seq-len")
+        )
+        #expect(moshi.arguments[mimiSequenceIndex + 1] == "20000")
         #expect(moshi.environment["REFERENCE_ENCODER_URL"] == "http://127.0.0.1:8001")
         #expect(!moshi.environment.keys.contains("OMLX_API_KEY"))
         #expect(moshi.environment["PYTHONHOME"] == root.appending(path: "Python").path)

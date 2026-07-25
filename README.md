@@ -160,7 +160,14 @@ through speakers:
 ```sh
 Vendor/voice-runtime/Python/bin/python3.12 \
   scripts/run-gate1-optimized-topology.py
+
+Vendor/voice-runtime/Python/bin/python3.12 \
+  scripts/run-full-duplex-soak.py
 ```
+
+The full-duplex soak runs for ten minutes, retains component logs under
+`tmp/Acceptance-logs/`, and writes its frozen summary to
+`Fixtures/Acceptance/full-duplex-soak-q8.json`.
 
 Additional source-build detail is in
 [`docs/voice-runtime-build.md`](docs/voice-runtime-build.md). Gate evidence is

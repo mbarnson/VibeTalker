@@ -258,9 +258,11 @@ nonisolated struct RuntimeInstallation: Sendable {
                 arguments: [
                     "-m", "moshi_mlx.local_web",
                     "--quantized", "8",
+                    "--steps", "12000",
                     "--moshi-weight", moshiWeightURL.path,
                     "--tokenizer", tokenizerURL.path,
                     "--mimi-weight", mimiWeightURL.path,
+                    "--mimi-max-seq-len", "20000",
                     "--lm-config", mlxConfigurationURL.path,
                     "--first-speaker", "model",
                     "--proactive-prompt", proactivePromptURL.path,

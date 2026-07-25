@@ -183,10 +183,14 @@ class ManagedRuntime:
                     if self.precision == "q8"
                     else "moshika-rag-mlx-bf16.safetensors"
                 )),
+                "--steps",
+                "12000",
                 "--tokenizer",
                 str(models / "tokenizer_spm_32k_3.model"),
                 "--mimi-weight",
                 str(models / "tokenizer-e351c8d8-checkpoint125.safetensors"),
+                "--mimi-max-seq-len",
+                "20000",
                 "--lm-config",
                 str(self.root / "moshi-rag-mlx-config.json"),
                 "--first-speaker",

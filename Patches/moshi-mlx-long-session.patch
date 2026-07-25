@@ -1,0 +1,25 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index c1ec2fd..817fa95 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -294,7 +294,11 @@ def web_server(
+     else:
+         nc = lm_config.depformer.num_slices
+         max_delay = max(lm_config.audio_delays)
+-    audio_tokenizer = rustymimi.StreamTokenizer(mimi_file, num_codebooks=nc)  # type: ignore
++    audio_tokenizer = rustymimi.StreamTokenizer(
++        mimi_file,
++        num_codebooks=nc,
++        max_seq_len=args.mimi_max_seq_len,
++    )  # type: ignore
+     proactive_prompt_frames = []
+     if args.proactive_prompt is not None:
+         prompt_pcm, _ = sphn.read(args.proactive_prompt, sample_rate=SAMPLE_RATE)
+@@ -722,6 +726,7 @@ def main():
+     parser.add_argument("--tokenizer", type=str)
+     parser.add_argument("--moshi-weight", type=str)
+     parser.add_argument("--mimi-weight", type=str)
++    parser.add_argument("--mimi-max-seq-len", default=8192, type=int)
+     parser.add_argument("-q", "--quantized", type=int, choices=[4, 8])
+     parser.add_argument("--steps", default=4000, type=int)
+     parser.add_argument("--hf-repo", type=str)

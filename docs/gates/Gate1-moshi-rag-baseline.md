@@ -352,3 +352,46 @@ rewrite the historical result: the unmodified pinned Rust/Candle backend still
 fails real-time execution on the acceptance Mac, and the product proceeds only
 because the PRD permits a deliberate architecture revision after a failed
 baseline.
+
+## Ten-minute full-duplex acceptance
+
+The q8 release topology subsequently completed the PRD's ten-minute
+full-duplex stability run. The frozen result is
+`Fixtures/Acceptance/full-duplex-soak-q8.json`; the harness is
+`scripts/run-full-duplex-soak.py`. It sends synthesized prompts over direct
+loopback WebSocket PCM, captures returned PCM to an ignored evidence file, and
+does not open a Core Audio output device.
+
+The first formal attempt exposed two independent upstream session limits:
+
+- `moshi_mlx.local_web` retained the upstream 4,000-step generation default,
+  causing the model subprocess to raise `reached max-steps 4005` after roughly
+  250 seconds.
+- `rustymimi.StreamTokenizer` retained its 8,192-position RoPE table, causing
+  its encoder thread to fail after roughly 327 seconds.
+
+The production launch now explicitly allocates 12,000 Moshi steps and 20,000
+Mimi positions. At 16 model steps per second and 25 codec-transformer
+positions per second, these are 750- and 800-second bounds respectively. Mimi's
+attention cache remains independently bounded to its upstream 250-position
+context; the longer RoPE table does not turn it into an unbounded KV cache.
+`Patches/moshi-mlx-long-session.patch` makes the Mimi position limit explicit
+and reproducible against the pinned GitHub source.
+
+The corrected formal run recorded:
+
+| Measurement | Result |
+| --- | ---: |
+| Wall-clock session | 601.256 s |
+| Decoded PCM coverage | 98.04% |
+| Output packets | 7,353 |
+| Median packet gap | 81.7 ms |
+| P99 packet gap | 89.4 ms |
+| Maximum packet gap | 142.2 ms |
+| Local-ASR markers | 10 / 10 |
+| Accepted and queued ARC references | 10 / 10 |
+
+All eight frozen checks passed, a second WebSocket handshake succeeded without
+restarting the runtime, and the retained runtime log contained zero Mimi
+encoder/decoder errors and zero max-step failures. This closes the automated
+no-underrun/full-duplex duration portion of the PRD acceptance target.

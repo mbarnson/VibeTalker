@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "protocol": {
+    "transport": "direct WebSocket PCM; no Core Audio output device",
+    "precision": "q8",
+    "duration_seconds": 600.0,
+    "prompt_interval_seconds": 60.0,
+    "markers": [
+      "canyon",
+      "lantern",
+      "orchard",
+      "velvet",
+      "copper",
+      "meadow",
+      "harbor",
+      "comet",
+      "willow",
+      "cobalt"
+    ]
+  },
+  "elapsed_seconds": 601.2557584169554,
+  "input_asr": "Moshe, soak marker canyon, give one short sentence about real-time audio. Moshe, soak marker lantern, give one short sentence about real-time audio. Moshe, soak marker orchard, give one short sentence about real-time audio. Moshe, soak marker velvet, give one short sentence about real-time audio. Moshe, soak marker copper, give one short sentence about real-time audio. Moshe, soak marker meadow, give one short sentence about real-time audio. Moshe, soak marker harbor, give one short sentence about real-time audio. Moshe, soak marker comet, give one short sentence about real-time audio. Moshe, soak marker willow, give one short sentence about real-time audio. Moshe, soak marker cobalt, give one short sentence about real-time audio.",
+  "recognized_markers": [
+    "canyon",
+    "lantern",
+    "orchard",
+    "velvet",
+    "copper",
+    "meadow",
+    "harbor",
+    "comet",
+    "willow",
+    "cobalt"
+  ],
+  "prompt_starts": [
+    {
+      "marker": "canyon",
+      "seconds": 2.5916961021721363e-05
+    },
+    {
+      "marker": "lantern",
+      "seconds": 61.275936291902326
+    },
+    {
+      "marker": "orchard",
+      "seconds": 121.14257966692094
+    },
+    {
+      "marker": "velvet",
+      "seconds": 181.14249454194214
+    },
+    {
+      "marker": "copper",
+      "seconds": 241.92544012493454
+    },
+    {
+      "marker": "meadow",
+      "seconds": 301.6760557919042
+    },
+    {
+      "marker": "harbor",
+      "seconds": 360.92048574995715
+    },
+    {
+      "marker": "comet",
+      "seconds": 420.7626411669189
+    },
+    {
+      "marker": "willow",
+      "seconds": 480.727468875004
+    },
+    {
+      "marker": "cobalt",
+      "seconds": 540.7170397919836
+    }
+  ],
+  "active_output_interruptions": [
+    {
+      "marker": "lantern",
+      "seconds": 61.275936291902326
+    },
+    {
+      "marker": "orchard",
+      "seconds": 121.14257966692094
+    },
+    {
+      "marker": "velvet",
+      "seconds": 181.14249454194214
+    },
+    {
+      "marker": "copper",
+      "seconds": 241.92544012493454
+    },
+    {
+      "marker": "meadow",
+      "seconds": 301.6760557919042
+    },
+    {
+      "marker": "harbor",
+      "seconds": 360.92048574995715
+    },
+    {
+      "marker": "comet",
+      "seconds": 420.7626411669189
+    },
+    {
+      "marker": "willow",
+      "seconds": 480.727468875004
+    },
+    {
+      "marker": "cobalt",
+      "seconds": 540.7170397919836
+    }
+  ],
+  "reference_requests": [
+    {
+      "utterance_id": "9f5dd7a9-ce64-41ea-ba9e-1d1570605fd2",
+      "transcript": "Moshe, soak marker canyon, give one short sentence about real-time audio.",
+      "marker": "canyon",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.43614704196806997,
+      "error": null
+    },
+    {
+      "utterance_id": "e6cff174-d9db-44c6-b947-1f1b2648f929",
+      "transcript": "Moshe, soak marker",
+      "marker": "realtime",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.3523017499828711,
+      "error": null
+    },
+    {
+      "utterance_id": "ee7d0b4c-a520-459d-8ae2-fc7ad20d0877",
+      "transcript": "Moshe, soak marker orchard, give one short sentence about real-time audio.",
+      "marker": "orchard",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.36762004205957055,
+      "error": null
+    },
+    {
+      "utterance_id": "e0165b9c-fda5-44e6-8e61-cc835b041a61",
+      "transcript": "Moshe, soak marker velvet, give one short sentence about real-time audio.",
+      "marker": "velvet",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.5206365000922233,
+      "error": null
+    },
+    {
+      "utterance_id": "81ebb020-ea77-4722-8b80-8d5eef9d7e97",
+      "transcript": "Moshe, soak marker copper, give one short sentence about real-time audio.",
+      "marker": "copper",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.5674946670187637,
+      "error": null
+    },
+    {
+      "utterance_id": "cd544989-cda5-4b98-acdc-fdf3b38d5439",
+      "transcript": "Moshe, soak marker meadow, give one short sentence about",
+      "marker": "meadow",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.37579216703306884,
+      "error": null
+    },
+    {
+      "utterance_id": "e4848a13-27fa-4204-841d-3f5938d25140",
+      "transcript": "Moshe, soak marker harbor, give one short sentence about real-time audio.",
+      "marker": "harbor",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.34501395805273205,
+      "error": null
+    },
+    {
+      "utterance_id": "b7fd226b-ad8b-4e05-a9c1-8b1ca3608581",
+      "transcript": "Moshe, soak marker comet, give one short sentence about real-time audio.",
+      "marker": "comet",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.34013433300424367,
+      "error": null
+    },
+    {
+      "utterance_id": "2952f80b-6fad-4182-99d5-3b1fcfb66960",
+      "transcript": "Moshe, soak marker willow, give one short sentence about real-time audio.",
+      "marker": "willow",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.3612310830503702,
+      "error": null
+    },
+    {
+      "utterance_id": "133eeb9d-9474-46a7-afb7-b981f6eb59a8",
+      "transcript": "Moshe, soak marker cobalt, give one short sentence about real-time audio.",
+      "marker": "cobalt",
+      "accepted": true,
+      "frames": 4,
+      "elapsed_seconds": 0.3495597499422729,
+      "error": null
+    }
+  ],
+  "retrieval_token_count": 7,
+  "retrieval_reconciliations": 7,
+  "output_packet_count": 7353,
+  "output_audio_duration_seconds": 588.24,
+  "output_coverage": 0.9804,
+  "packet_gap_median_seconds": 0.08154783345526084,
+  "packet_gap_p95_seconds": 0.08522154192905873,
+  "packet_gap_p99_seconds": 0.0893579579424113,
+  "packet_gap_max_seconds": 0.14216437505092472,
+  "audio_output": "tmp/Acceptance-audio/full-duplex-soak-q8.wav",
+  "audio_sha256": "649e01868ccf32de0ea484e242ccd9054b73c9fd930e300a83e22fbe99e12133",
+  "reconnect_passed": true,
+  "checks": {
+    "ten_minute_duration": true,
+    "continuous_output_coverage": true,
+    "no_half_second_output_stall": true,
+    "p99_packet_gap_under_150ms": true,
+    "local_asr_marker_coverage": true,
+    "active_output_interruptions": true,
+    "dynamic_reference_injection": true,
+    "runtime_remained_connected": true
+  },
+  "gate_passed": true
+}

@@ -121,7 +121,8 @@ prepare_checkout \
     "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
     "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
     "$repo_root/Patches/moshi-mlx-proactive-completion.patch" \
-    "$repo_root/Patches/moshi-mlx-retrieval-trigger.patch"
+    "$repo_root/Patches/moshi-mlx-retrieval-trigger.patch" \
+    "$repo_root/Patches/moshi-mlx-long-session.patch"
 prepare_checkout \
     "$rag_repository" \
     "$rag_revision" \
