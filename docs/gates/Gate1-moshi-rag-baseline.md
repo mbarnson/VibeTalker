@@ -179,17 +179,56 @@ q4 can sustain real-time operation on the acceptance Mac. The current
 Rust/Candle Moshi-RAG execution path cannot. Continuing to tune process QoS or
 CPU scheduling would not address the measured bottleneck.
 
-Gate 1 remains failed as originally written because the unmodified
-Rust/Candle backend did not complete its required live path. Dependent product
-work requires a deliberate architecture revision that preserves Moshi-RAG's
-Reference conditioning while using the demonstrated MLX execution path. The
-next implementation investigation is the narrowest of:
+## Moshi-RAG MLX conversion checkpoint
 
-1. convert the Moshi-RAG checkpoint to MLX and add its
-   `reference_with_time` streaming-sum conditioner to the MLX runtime; or
-2. keep the ARC encoder as a supervised sidecar and feed its encoded
-   conditioning tensor into an MLX Moshi-RAG model.
+The pinned Moshi-RAG BF16 checkpoint was converted with the fork's
+`scripts/import_mlx.py` and loaded by the pinned `moshi_mlx` source runtime.
+The matching MLX model configuration is tracked in
+`Dependencies/moshi-rag-mlx-config.json`.
 
-The Moshi-RAG repository already contains MLX weight-conversion scripts and a
-Python ARC conditioner service, so this investigation starts from upstream
-source rather than a new generic speech pipeline.
+The converted BF16 model remained coherent and real-time:
+
+| Audio played | Missed audio | Latency | Result |
+| ---: | ---: | ---: | --- |
+| 56.40 s | 0.05 s | 0.205 s | Coherent, flat latency |
+
+A provisional q4 conversion also ran in real time, but its output degenerated
+during a five-minute session. It is therefore rejected as a correctness
+baseline; quantization needs a model-specific recipe rather than blanket MLX
+linear quantization.
+
+### ARC conditioner on MPS
+
+The fork's ARC Reference conditioner was made runnable without `xformers` by
+using PyTorch scaled-dot-product attention for the single-reference case. On
+MPS, the first request (including compilation) took 3.996 s and a warmed
+request took 0.297 s. The resulting streaming-sum tensor has shape
+`[1, T, 4096]`.
+
+A deterministic 24 kHz fixture asked, “Moshi, what is the verification
+color?” Live microphone packets were suppressed while the fixture was active,
+preventing the earlier double-rate input and negative-latency artifact. With a
+short three-frame reference, the model answered “copper,” demonstrating that
+transport worked but steering was insufficient. With a fuller 11-frame ARC
+reference that explicitly established cobalt and excluded alternatives, the
+model answered:
+
+> Good question! The verification color is cobalt.
+
+The successful conditioned run reported 24.50 s audio played, 0.04 s missed
+audio, and a 0.003–0.121 s buffer range. This establishes the provisional
+Apple-Silicon topology:
+
+1. Moshi-RAG BF16 inference in MLX/Metal.
+2. ARC Reference encoding as a supervised PyTorch/MPS sidecar.
+3. One ARC streaming-sum frame fused into each Moshi model step.
+4. A separate local streaming ASR path, because the MLX web runtime does not
+   expose the Rust server's embedded STT.
+
+Gate 1 remains open until this topology is packaged behind the native
+coordinator and the local ASR stream is connected.
+
+The original Rust/Candle gate remains a recorded failure. The subsequent
+investigation selected the second architecture revision: retain the ARC
+encoder as a supervised sidecar and feed its encoded streaming-sum tensor into
+the converted MLX Moshi-RAG model.
