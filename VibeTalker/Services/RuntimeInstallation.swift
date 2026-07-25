@@ -5,12 +5,14 @@ nonisolated struct RuntimeInstallation: Sendable {
     let bundledRuntimeRootURL: URL
     let bundledVoiceRuntimeRootURL: URL
     let bundledVoiceExecutableURL: URL
+    let opensslConfigurationURL: URL?
 
     init(
         rootURL: URL? = nil,
         bundledRuntimeRootURL: URL? = nil,
         bundledVoiceRuntimeRootURL: URL? = nil,
-        bundledVoiceExecutableURL: URL? = nil
+        bundledVoiceExecutableURL: URL? = nil,
+        opensslConfigurationURL: URL? = nil
     ) {
         if let rootURL {
             self.rootURL = rootURL
@@ -27,6 +29,7 @@ nonisolated struct RuntimeInstallation: Sendable {
         self.bundledVoiceRuntimeRootURL = bundledVoiceRuntimeRootURL ?? self.rootURL
         self.bundledVoiceExecutableURL = bundledVoiceExecutableURL
             ?? self.bundledVoiceRuntimeRootURL.appending(path: "Python/bin/python3.12")
+        self.opensslConfigurationURL = opensslConfigurationURL
     }
 
     var pythonURL: URL {
@@ -297,7 +300,7 @@ nonisolated struct RuntimeInstallation: Sendable {
         var environment = [
             "HOME": rootURL.path,
             "NODE_NO_WARNINGS": "1",
-            "OPENSSL_CONF": "/dev/null",
+            "OPENSSL_CONF": opensslConfigurationURL?.path ?? "/dev/null",
             "PATH": "/usr/bin:/bin",
             "PI_CODING_AGENT_DIR": rootURL.appending(path: "PiConfig").path,
             "TMPDIR": FileManager.default.temporaryDirectory.path

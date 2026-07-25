@@ -281,7 +281,7 @@ struct ContentView: View {
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 6) {
                         ForEach(model.events) { event in
                             ConsoleEventRow(event: event)
                                 .id(event.id)

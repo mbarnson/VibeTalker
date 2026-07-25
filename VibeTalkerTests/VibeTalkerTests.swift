@@ -445,10 +445,13 @@ struct VibeTalkerTests {
         )
         try Data().write(to: rpcEntry)
         try Data().write(to: policy)
+        let opensslConfiguration = fixture.appending(path: "openssl.cnf")
+        try Data().write(to: opensslConfiguration)
 
         let installation = RuntimeInstallation(
             rootURL: managedRoot,
-            bundledRuntimeRootURL: bundledRoot
+            bundledRuntimeRootURL: bundledRoot,
+            opensslConfigurationURL: opensslConfiguration
         )
         let spec = try installation.piLaunchSpec(
             nodeURL: URL(fileURLWithPath: "/bin/sh")
@@ -466,7 +469,7 @@ struct VibeTalkerTests {
             "PI_CODING_AGENT_DIR",
             "TMPDIR"
         ]))
-        #expect(spec.environment["OPENSSL_CONF"] == "/dev/null")
+        #expect(spec.environment["OPENSSL_CONF"] == opensslConfiguration.path)
         #expect(spec.environment["HOME"] == managedRoot.path)
         #expect(spec.environment["PI_CODING_AGENT_DIR"] == managedRoot
             .appending(path: "PiConfig").path)

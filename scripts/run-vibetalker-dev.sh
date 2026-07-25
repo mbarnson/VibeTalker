@@ -2,22 +2,26 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-provider="${1:-anthropic}"
+interaction_provider="${1:-responses-compatible}"
+coding_provider="${2:-$interaction_provider}"
 env_file="${VIBETALKER_ENV_FILE:-$repo_root/.env}"
 
-case "$provider" in
-    anthropic) environment_key="ANTHROPIC_API_KEY" ;;
-    openai) environment_key="OPENAI_API_KEY" ;;
-    openrouter) environment_key="OPENROUTER_API_KEY" ;;
-    openai-compatible|responses-compatible) environment_key="OMLX_API_KEY" ;;
-    *)
-        echo "error: provider must be anthropic, openai, openrouter, openai-compatible, or responses-compatible" >&2
-        exit 2
-        ;;
-esac
+environment_key_for_provider() {
+    case "$1" in
+        anthropic) echo "ANTHROPIC_API_KEY" ;;
+        openai) echo "OPENAI_API_KEY" ;;
+        openrouter) echo "OPENROUTER_API_KEY" ;;
+        openai-compatible|responses-compatible) echo "OMLX_API_KEY" ;;
+        *)
+            echo "error: provider must be anthropic, openai, openrouter, openai-compatible, or responses-compatible" >&2
+            return 2
+            ;;
+    esac
+}
 
-credential="$(
-    /usr/bin/awk -F= -v requested="$environment_key" '
+credential_for_key() {
+    local requested_key="$1"
+    /usr/bin/awk -F= -v requested="$requested_key" '
         $1 == requested {
             value = substr($0, index($0, "=") + 1)
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
@@ -30,9 +34,18 @@ credential="$(
             exit
         }
     ' "$env_file"
-)"
-if [[ -z "$credential" ]]; then
-    echo "error: $environment_key is missing or empty in $env_file" >&2
+}
+
+interaction_environment_key="$(environment_key_for_provider "$interaction_provider")"
+coding_environment_key="$(environment_key_for_provider "$coding_provider")"
+interaction_credential="$(credential_for_key "$interaction_environment_key")"
+coding_credential="$(credential_for_key "$coding_environment_key")"
+if [[ -z "$interaction_credential" ]]; then
+    echo "error: $interaction_environment_key is missing or empty in $env_file" >&2
+    exit 1
+fi
+if [[ -z "$coding_credential" ]]; then
+    echo "error: $coding_environment_key is missing or empty in $env_file" >&2
     exit 1
 fi
 
@@ -58,6 +71,7 @@ if [[ ! -x "$app_binary" ]]; then
 fi
 
 unset ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OMLX_API_KEY
-export "${environment_key}=${credential}"
-unset credential
+export "${interaction_environment_key}=${interaction_credential}"
+export "${coding_environment_key}=${coding_credential}"
+unset interaction_credential coding_credential
 exec "$app_binary"

@@ -99,7 +99,11 @@ final class AppModel {
             bundledVoiceRuntimeRootURL: Bundle.main.bundleURL
                 .appending(path: "Contents/Resources/voice-runtime"),
             bundledVoiceExecutableURL: Bundle.main.bundleURL
-                .appending(path: "Contents/Helpers/vibetalker-python")
+                .appending(path: "Contents/Helpers/vibetalker-python"),
+            opensslConfigurationURL: Bundle.main.url(
+                forResource: "openssl",
+                withExtension: "cnf"
+            )
         )
         self.ledger = EventLedger(
             fileURL: resolvedInstallation.rootURL

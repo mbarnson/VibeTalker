@@ -1,0 +1,20 @@
+diff --git a/moshi_mlx/moshi_mlx/local_web.py b/moshi_mlx/moshi_mlx/local_web.py
+index 40dc092..ae16a38 100644
+--- a/moshi_mlx/moshi_mlx/local_web.py
++++ b/moshi_mlx/moshi_mlx/local_web.py
+@@ -306,6 +306,7 @@ def web_server(
+                 await asyncio.sleep(0.001)
+                 continue
+             output_queue.put_nowait(data)
++            await asyncio.sleep(0)
+ 
+     async def send_loop2():
+         while True:
+@@ -324,6 +325,7 @@ def web_server(
+                     audio_tokenizer.decode(data)
+                 elif kind == 1:
+                     text_queue.put_nowait(data)
++                await asyncio.sleep(0)
+             else:
+                 await asyncio.sleep(0.001)
+ 

@@ -117,6 +117,7 @@ prepare_checkout \
     "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch" \
     "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
     "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
+    "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
     "$repo_root/Patches/moshi-mlx-parent-termination.patch"
 prepare_checkout \
     "$rag_repository" \
@@ -231,6 +232,7 @@ marker="$runtime_root/.vibetalker-voice-runtime"
         "$repo_root/Patches/moshi-mlx-app-sandbox-pipes.patch" \
         "$repo_root/Patches/moshi-mlx-streaming-stt.patch" \
         "$repo_root/Patches/moshi-mlx-nonblocking-log.patch" \
+        "$repo_root/Patches/moshi-mlx-event-loop-fairness.patch" \
         "$repo_root/Patches/moshi-mlx-parent-termination.patch" \
         "$repo_root/Patches/moshi-rag-apple-silicon-conditioner.patch" \
         "$repo_root/scripts/quantize-moshi-mlx.py"

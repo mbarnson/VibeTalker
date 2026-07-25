@@ -1,7 +1,8 @@
 # Gate 5: pinned pi source baseline
 
-Status: **source build, signed-app embedding, security fixtures, native RPC,
-and typed sandbox edit passed; voice/status continuity pending**
+Status: **passed — pinned source build, signed-app embedding, sandbox policy,
+hosted coding, voice dispatch, grounded status, continuity, cancellation, and
+proactive completion all verified**
 
 ## Source identity
 
@@ -48,9 +49,6 @@ returned a successful `get_state` response with the same `smoke-1` identifier,
 an idle session, zero messages, and no configured model. This proves the pinned
 source build and stdin/stdout protocol boundary without sending a provider
 request or loading host configuration.
-
-Gate 5 remains open until the spoken path, grounded status exchange, window
-reopen continuity, abort path, and proactive spoken completion pass together.
 
 ## Tool-policy load checkpoint
 
@@ -101,10 +99,9 @@ the composer leaves active-job mode on completion, cancellation, failure, or
 helper exit.
 
 Synthetic protocol fixtures cover successful completion text, abort, provider
-failure, and tool-path projection. The Xcode test bundle compiles those
-fixtures. The Xcode 27 beta test-plan launcher on this machine still stalls
-before emitting test results, so compilation is recorded separately from test
-execution.
+failure, and tool-path projection. On July 25, 2026,
+`xcodebuild -scheme VibeTalker -destination 'platform=macOS' test
+-only-testing:VibeTalkerTests` completed all 42 tests successfully.
 
 Computer Use then submitted a real harmless typed request through the signed
 app with no provider credential configured. Pi returned its authoritative
@@ -153,12 +150,15 @@ dialog. The fixture was then removed through the product UI. An earlier
 experiment that pre-created a legacy login-Keychain item with the `security`
 CLI was discarded because its creator ACL caused repeated password prompts.
 
-For source-tree development only, `scripts/run-vibetalker-dev.sh` reads exactly
-one selected provider key from the ignored `.env`, exports it to the app
-without placing the value in argv, clears the other supported provider
-variables, and launches the already-built product. The UI labels this source
-`Development environment`. This path creates no Keychain item and therefore
-causes no authorization prompts during iterative debug builds.
+For source-tree development only, `scripts/run-vibetalker-dev.sh` accepts an
+Interaction provider and an optional Coding provider. It reads only the
+corresponding key or keys from the ignored `.env`, exports them to the app
+without placing values in argv, clears the other supported provider variables,
+and launches the already-built product. For example,
+`scripts/run-vibetalker-dev.sh openai anthropic` supplies hosted Responses for
+Interaction and Anthropic for pi. The UI labels this source `Development
+environment`. This path creates no Keychain item and therefore causes no
+authorization prompts during iterative debug builds.
 
 ## Compatible provider configuration
 
@@ -209,7 +209,79 @@ Pinned source-built pi RPC session ready
 
 The first native attempt exposed a hidden host dependency in the Homebrew Node
 build: OpenSSL tried to read `/opt/homebrew/etc/openssl@3/openssl.cnf`, which
-the app sandbox correctly denied. VibeTalker now sets `OPENSSL_CONF=/dev/null`
-for the child, so the packaged runtime does not depend on the developer
-machine's Homebrew configuration. Child stderr is also forwarded to the
-redacted native ledger so future early-runtime failures remain diagnosable.
+the app sandbox correctly denied. VibeTalker copies that configuration into
+the signed app and points both Gate 0 and pi at the bundled copy, so the
+packaged runtime does not depend on the developer machine's Homebrew path and
+still has a real TLS configuration for hosted providers. Child stderr is also
+forwarded to the redacted native ledger so future early-runtime failures remain
+diagnosable.
+
+The previous pi launch contract instead set `OPENSSL_CONF=/dev/null`. That was
+enough for the local RPC handshake but caused the signed inherited helper's
+hosted Anthropic turns to fail before opening a TCP connection. After pi was
+aligned with Gate 0's signed `openssl.cnf`, the same signed app completed a real
+Anthropic turn in about four seconds: pi wrote `gate5-tls-probe.txt`, read it
+back, and published both authoritative tool completions. The selected
+credential still enters only the child environment and is never written to
+`auth.json`, argv, the ledger, or the source tree.
+
+## Signed vertical-slice acceptance
+
+The final Gate 5 run used the signed Xcode product with OpenAI Responses as the
+Interaction provider and Anthropic as the Coding provider. The upstream Moshi
+browser had already proven real microphone/output playback; the correlated
+acceptance run then committed the canonical ASR transcript through the same
+loopback endpoint used by streaming STT:
+
+```text
+Create a file named gate5-voice-marker.txt containing exactly VibeTalker voice
+gate passed, then read it back to verify. Do not change any other file.
+```
+
+The Coordinator returned an accepted, correlated interaction request in 1.69
+seconds. The ledger recorded the grounded `Work started in Workspace`
+Reference, pi's authoritative `write` and `read` events, and this completion:
+
+```text
+Done. Created `gate5-voice-marker.txt` containing exactly
+`VibeTalker voice gate passed` and verified its contents by reading it back.
+```
+
+Moshi accepted the start and completion ARC References. A separate natural
+status question returned `Workspace: Work in Workspace is complete`, rather
+than asking the Interaction model to invent job state.
+
+Closing the SwiftUI window with Command-W and reopening it with Command-N left
+the app-owned Coordinator, local voice topology, pi RPC session, current state,
+and bounded ledger history attached. The reopened surface reported
+`Coordinator adapter ready` and `RPC connected`.
+
+Finally, a deliberately long typed inventory request was interrupted by the
+committed utterance `Stop pi now.` The ledger correlated the transcript with
+the active job, emitted `Pi acknowledged cancellation`, reached the
+authoritative `Pi job aborted` state, and delivered
+`Cancellation requested for Workspace` to Moshi. This completes the required
+voice dispatch, grounded status, continuity, abort, and proactive-completion
+paths through one native-owned pi session.
+
+## Moshi event-loop fairness fix
+
+The first active-audio acceptance attempt exposed a separate upstream MLX
+runtime defect: Moshi's two successful WebSocket receive loops did not yield
+back to aiohttp. Under an active browser stream, `/api/reference` received zero
+bytes and timed out, which also matched the audible stuttering observed during
+playback.
+
+`Patches/moshi-mlx-event-loop-fairness.patch` adds an explicit cooperative
+yield after every successfully processed receive iteration. The
+GitHub-source build script applies and fingerprints that patch as part of the
+pinned voice-runtime provenance. With the patched runtime and an active Moshi
+browser WebSocket, the same `/api/reference` request changed from an
+eight-second timeout with zero bytes to HTTP 200 in 0.55 seconds:
+
+```json
+{"accepted": true, "frames": 3}
+```
+
+The subsequent full transcript and grounded-status requests both returned HTTP
+200, and Moshi continued accepting ARC Reference frames while pi worked.
