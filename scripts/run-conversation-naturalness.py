@@ -254,6 +254,11 @@ def parse_rating(content: str) -> dict[str, Any]:
     content = content.strip()
     if content.startswith("```"):
         content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    elif not content.startswith("{"):
+        start = content.find("{")
+        end = content.rfind("}")
+        if start >= 0 and end > start:
+            content = content[start : end + 1]
     rating = json.loads(content)
     required = {
         "relevant",
@@ -302,6 +307,7 @@ async def evaluate_audio(
         "OpenAI-Safety-Identifier": "vibetalker-acceptance-evaluator",
     }
     text_deltas: list[str] = []
+    completed_text = ""
     completed_response: dict[str, Any] | None = None
     async with asyncio.timeout(timeout):
         async with aiohttp.ClientSession() as session:
@@ -370,12 +376,27 @@ async def evaluate_audio(
                         )
                     if event_type == "response.output_text.delta":
                         text_deltas.append(event.get("delta", ""))
+                    if event_type == "response.output_text.done":
+                        completed_text = event.get("text", "")
                     if event_type == "response.done":
                         completed_response = event.get("response", {})
                         break
     content = "".join(text_deltas).strip()
+    if not content:
+        content = completed_text.strip()
     if not content and completed_response is not None:
         content = extract_response_text(completed_response)
+    if completed_response is None:
+        raise RuntimeError("Realtime evaluator ended without response.done")
+    if completed_response.get("status") != "completed":
+        raise RuntimeError(
+            "Realtime evaluator response failed: "
+            f"{completed_response.get('status_details')}"
+        )
+    if not content:
+        raise RuntimeError(
+            "Realtime evaluator completed without text output"
+        )
     rating = parse_rating(content)
     return {
         "model": model,
@@ -383,6 +404,61 @@ async def evaluate_audio(
         "transport": "OpenAI Realtime WebSocket",
         **rating,
     }
+
+
+def make_report(
+    args: argparse.Namespace,
+    results: list[dict[str, Any]],
+    phase: str,
+) -> dict[str, Any]:
+    pass_count = sum(result.get("passed", False) for result in results)
+    category_counts = {
+        category: {
+            "count": sum(r["category"] == category for r in results),
+            "passed": sum(
+                r["category"] == category and r.get("passed", False)
+                for r in results
+            ),
+        }
+        for category in ("factual", "open_ended")
+    }
+    completed_ratings = sum(
+        "audio_evaluation" in result
+        for result in results
+    )
+    return {
+        "schema_version": 1,
+        "phase": phase,
+        "corpus": str(args.corpus),
+        "precision": "q8",
+        "evaluator": None if args.skip_evaluator else {
+            "model": args.evaluator_model,
+            "endpoint": args.evaluator_endpoint,
+            "input": "captured WAV plus prompt and reference text",
+        },
+        "turn_count": len(results),
+        "completed_ratings": completed_ratings,
+        "pass_count": pass_count,
+        "category_counts": category_counts,
+        "gate_passed": (
+            phase == "complete"
+            and len(results) == 20
+            and completed_ratings == 20
+            and pass_count >= 16
+        ),
+        "results": results,
+    }
+
+
+def write_report(
+    args: argparse.Namespace,
+    results: list[dict[str, Any]],
+    phase: str,
+) -> dict[str, Any]:
+    report = make_report(args, results, phase)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, indent=2) + "\n")
+    return report
 
 
 async def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -453,20 +529,37 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             await runtime.stop()
             await sink.cleanup()
 
+    write_report(args, results, "capture_complete")
     api_key = os.environ.get("OPENAI_API_KEY")
     if not args.skip_evaluator and not api_key:
         raise RuntimeError("OPENAI_API_KEY is required for audio evaluation")
     for index, result in enumerate(results, start=1):
         if args.skip_evaluator:
             rating = None
+            rating_error = None
+            evaluator_attempts = 0
         else:
-            rating = await evaluate_audio(
-                args.evaluator_endpoint,
-                args.evaluator_model,
-                api_key,
-                args.evaluator_timeout,
-                result,
-            )
+            rating = None
+            rating_error = None
+            evaluator_attempts = 0
+            for attempt in range(1, 3):
+                evaluator_attempts = attempt
+                try:
+                    rating = await evaluate_audio(
+                        args.evaluator_endpoint,
+                        args.evaluator_model,
+                        api_key,
+                        args.evaluator_timeout,
+                        result,
+                    )
+                    rating_error = None
+                    break
+                except Exception as error:
+                    rating_error = (
+                        f"{type(error).__name__}: {error}"
+                    )
+                    if attempt < 2:
+                        await asyncio.sleep(1)
         objective = {
             "minimum_audio_duration": result["audio_duration_seconds"] >= 2.0,
             "p99_packet_gap_under_150ms": (
@@ -479,6 +572,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             ),
         }
         result["audio_evaluation"] = rating
+        result["audio_evaluation_error"] = rating_error
+        result["audio_evaluation_attempts"] = evaluator_attempts
         result["objective_checks"] = objective
         result["passed"] = (
             rating is not None
@@ -493,39 +588,13 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             f"{'PASS' if result['passed'] else 'FAIL'} {result['id']}",
             flush=True,
         )
+        write_report(args, results, "evaluating")
 
-    pass_count = sum(result["passed"] for result in results)
-    category_counts = {
-        category: {
-            "count": sum(r["category"] == category for r in results),
-            "passed": sum(
-                r["category"] == category and r["passed"]
-                for r in results
-            ),
-        }
-        for category in ("factual", "open_ended")
-    }
-    report = {
-        "schema_version": 1,
-        "corpus": str(args.corpus),
-        "precision": "q8",
-        "evaluator": None if args.skip_evaluator else {
-            "model": args.evaluator_model,
-            "endpoint": args.evaluator_endpoint,
-            "input": "captured WAV plus prompt and reference text",
-        },
-        "turn_count": len(results),
-        "pass_count": pass_count,
-        "category_counts": category_counts,
-        "gate_passed": len(results) == 20 and pass_count >= 16,
-        "results": results,
-    }
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2) + "\n")
+    report = write_report(args, results, "complete")
     print(json.dumps({
         "turn_count": len(results),
-        "pass_count": pass_count,
-        "category_counts": category_counts,
+        "pass_count": report["pass_count"],
+        "category_counts": report["category_counts"],
         "gate_passed": report["gate_passed"],
     }))
     return report
