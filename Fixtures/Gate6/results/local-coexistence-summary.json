@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "machine": {
+    "soc": "Apple M4 Max",
+    "memory_gb": 128
+  },
+  "memory_coexistence": {
+    "verdict": "pass",
+    "observed_free_memory_percent": 80,
+    "limiting_resource": "Metal execution contention, not unified-memory capacity"
+  },
+  "shared_model_contention": {
+    "verdict": "fail",
+    "runs": [
+      {
+        "interaction_model": "mlx-community--Qwen3-4B-Instruct-2507-4bit",
+        "median_seconds": 2.422,
+        "p95_seconds": 2.527,
+        "audio_result": "missed audio increased; reported latency exceeded 9 seconds and later 15 seconds"
+      },
+      {
+        "interaction_model": "mlx-community--Qwen3-0.6B-8bit",
+        "median_seconds": 1.531,
+        "p95_seconds": 1.633,
+        "audio_result": "missed audio and latency still increased"
+      }
+    ],
+    "cpu_only_omlx": {
+      "supported": false,
+      "failure": "KeyError: max_recommended_working_set_size"
+    }
+  },
+  "hosted_responses_comparison": {
+    "artifact": "Fixtures/Gate6/results/openai-luna-interactor.json",
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "none",
+    "valid_turns": 100,
+    "turns": 100,
+    "median_seconds": 1.04608,
+    "p95_seconds": 2.222713,
+    "over_three_seconds": 2,
+    "reference_latency_gate_passed": false
+  },
+  "release_decision": "Do not run a local oMLX model concurrently with Moshi in the Slice One release configuration."
+}
